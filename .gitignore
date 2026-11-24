@@ -1,0 +1,49 @@
+# =========================
+# 1. Frontend (Node / Vite)
+# =========================
+node_modules/
+dist/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# 2. Backend & ETL (Python)
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+ENV/
+*.egg-info/
+.pytest_cache/
+
+# =========================
+# 3. Variables de entorno y Secretos (¡NUNCA SUBIR!)
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# 4. Datos pesados / Archivos temporales
+# =========================
+# Si descargan CSVs muy pesados (>50 MB) de FONACOT o SNIIV, ignórenlos o dejen solo muestras:
+*.zip
+*.tar.gz
+*.bak
+*.sql.gz
+
+# =========================
+# 5. Sistema Operativo e IDEs
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
