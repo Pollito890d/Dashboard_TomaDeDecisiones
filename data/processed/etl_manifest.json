@@ -1,0 +1,583 @@
+{
+  "descripcion": "Manifiesto determinista de salidas del ETL local (fase III). NULL = campo vacío en CSV. Ver docs/etl_calidad.md.",
+  "fuentes": {
+    "cnbv": {
+      "conciliacion": {
+        "BE_SOCAPS_202503.xlsx": {
+          "ef_comparaciones": 608,
+          "ef_diferencia_max_mxn": "1.000",
+          "estados": {
+            "no_reportado": 0,
+            "parcial": 4,
+            "publicado": 151
+          },
+          "excluidos_subtotal": {
+            "Capitalizacion": "fila 12",
+            "Instituciones (1)": "fila 14",
+            "Instituciones (2)": "fila 8",
+            "TI": "fila 9"
+          },
+          "instituciones": 155
+        },
+        "BE_SOCAPS_202506.xlsx": {
+          "ef_comparaciones": 612,
+          "ef_diferencia_max_mxn": "1.000",
+          "estados": {
+            "no_reportado": 0,
+            "parcial": 3,
+            "publicado": 152
+          },
+          "excluidos_subtotal": {
+            "Capitalizacion": "fila 13",
+            "Instituciones (1)": "fila 15",
+            "Instituciones (2)": "fila 10",
+            "TI": "fila 10"
+          },
+          "instituciones": 155
+        },
+        "BE_SOCAPS_202509.xlsx": {
+          "ef_comparaciones": 612,
+          "ef_diferencia_max_mxn": "1.000",
+          "estados": {
+            "no_reportado": 2,
+            "parcial": 1,
+            "publicado": 152
+          },
+          "excluidos_subtotal": {
+            "Capitalizacion": "fila 13",
+            "Instituciones (1)": "fila 14",
+            "Instituciones (2)": "fila 9",
+            "TI": "fila 10"
+          },
+          "instituciones": 155
+        },
+        "BE_SOCAPS_202512.xlsx": {
+          "ef_comparaciones": 608,
+          "ef_diferencia_max_mxn": "1.000",
+          "estados": {
+            "no_reportado": 0,
+            "parcial": 4,
+            "publicado": 151
+          },
+          "excluidos_subtotal": {
+            "Capitalizacion": "fila 13",
+            "Instituciones (1)": "fila 15",
+            "Instituciones (2)": "fila 9",
+            "TI": "fila 10"
+          },
+          "instituciones": 155
+        }
+      },
+      "entradas": [
+        {
+          "archivo": "data/raw/cnbv/SH_SOCAPS.xlsm",
+          "periodo": "2013-01 a 2026-09 (incluye 2025 mensual)",
+          "sha256": "c776388a8201863a53c1da6af2824b6c9b1498bf3727da52d3da99479bb1acee",
+          "tamano_bytes": 30970197
+        },
+        {
+          "archivo": "data/raw/cnbv/BE_SOCAPS_202503.xlsx",
+          "periodo": "2025-Q1 (marzo)",
+          "sha256": "935b657d7ded42de228dcbd22e6986759032747db7a275d9725f1dcce76703cc",
+          "tamano_bytes": 838766
+        },
+        {
+          "archivo": "data/raw/cnbv/BE_SOCAPS_202506.xlsx",
+          "periodo": "2025-Q2 (junio)",
+          "sha256": "f797f4a110128bc7d2c6478e7cbf698a659f2c2950e2896fe6564306e10a640d",
+          "tamano_bytes": 1500417
+        },
+        {
+          "archivo": "data/raw/cnbv/BE_SOCAPS_202509.xlsx",
+          "periodo": "2025-Q3 (septiembre)",
+          "sha256": "207c7b769f3334c1974d8170fe58e3c79743d1d90e0233f89f2de6461a3e0a39",
+          "tamano_bytes": 839474
+        },
+        {
+          "archivo": "data/raw/cnbv/BE_SOCAPS_202512.xlsx",
+          "periodo": "2025-Q4 (diciembre)",
+          "sha256": "d607d217963782ddb1dd6bac0a14ccdb30832e80e5ee34bba04e6a23873eccd9",
+          "tamano_bytes": 1509189
+        }
+      ],
+      "rechazos": {
+        "archivo": "rechazos_cnbv.csv",
+        "filas": 9,
+        "sha256": "8b19051e871aa2b29b195a107b0c4a2f220797438b325391993da5e64667d33c"
+      },
+      "salidas": [
+        {
+          "archivo": "cnbv_sector_mes.csv",
+          "columnas": [
+            "mes",
+            "fila_series",
+            "codigo_original",
+            "concepto",
+            "naturaleza",
+            "unidad_origen",
+            "unidad_normalizada",
+            "valor_origen",
+            "valor",
+            "archivo",
+            "hoja",
+            "celda"
+          ],
+          "filas": 598,
+          "grano": [
+            "mes",
+            "fila_series"
+          ],
+          "nombre": "cnbv_sector_mes",
+          "sha256": "30e6774c529e5c0801f2c555d973efa1af8e71512fa7e01b9b659c5aa891f55e",
+          "tabla_destino": "hecho_cnbv_sector_mes + dim_concepto_cnbv(fila_series)",
+          "unidades": {
+            "valor": "MXN si unidad_normalizada=mxn (Series × 1,000,000, escala inferida); conteo o puntos porcentuales en otro caso",
+            "valor_origen": "millones de pesos inferidos / conteo / porcentaje, sin escalar"
+          }
+        },
+        {
+          "archivo": "cnbv_institucion_trim.csv",
+          "columnas": [
+            "mes",
+            "clave_seis",
+            "clave_boletin",
+            "nombre_boletin",
+            "estado_reporte",
+            "socios",
+            "sucursales",
+            "activo_mxn",
+            "disponibilidades_mxn",
+            "cartera_vigente_mxn",
+            "cartera_vencida_mxn",
+            "estimacion_mxn",
+            "captacion_total_mxn",
+            "captacion_tradicional_mxn",
+            "ingresos_intereses_trim_mxn",
+            "gastos_intereses_trim_mxn",
+            "imor_pct",
+            "nicap_pct",
+            "participacion_activo_pct",
+            "categoria_nicap",
+            "tasa_activa_pct",
+            "tasa_pasiva_total_pct",
+            "tasa_pasiva_tradicional_pct",
+            "marcas_origen",
+            "archivo"
+          ],
+          "filas": 620,
+          "grano": [
+            "mes",
+            "clave_seis"
+          ],
+          "nombre": "cnbv_institucion_trim",
+          "sha256": "2ad509bd326f9dba73002c2aa4caa89fc0d76d0c78684ac432e02db432d6e77f",
+          "tabla_destino": "hecho_cnbv_institucion_trim (+ dim_institucion por clave_seis)",
+          "unidades": {
+            "*_mxn": "MXN (boletín en miles × 1,000, escala declarada)",
+            "*_pct": "puntos porcentuales publicados",
+            "*_trim_mxn": "flujo del trimestre en MXN",
+            "socios, sucursales": "conteo al cierre"
+          }
+        },
+        {
+          "archivo": "cnbv_total_trim.csv",
+          "columnas": [
+            "mes",
+            "activo_mxn",
+            "cartera_vigente_mxn",
+            "captacion_total_mxn",
+            "imor_pct",
+            "icor_pct",
+            "nicap_pct",
+            "roa_pct",
+            "archivo"
+          ],
+          "filas": 4,
+          "grano": [
+            "mes"
+          ],
+          "nombre": "cnbv_total_trim",
+          "sha256": "86946f1eff59f066c469d843304fdc3532874efdf892c60eeba066dc612844d4",
+          "tabla_destino": "hecho_cnbv_total_trim",
+          "unidades": {
+            "*_mxn": "MXN (miles × 1,000)",
+            "*_pct": "puntos porcentuales publicados en Indicadores"
+          }
+        }
+      ],
+      "validaciones": {
+        "advertencias": [
+          {
+            "detalle": "186 valores exceden la escala del esquema; PostgreSQL los redondearía",
+            "fuente": "cnbv",
+            "prueba": "sector valor: ≤6 decimales",
+            "resultado": "advertencia"
+          },
+          {
+            "detalle": "1 valores exceden la escala del esquema; PostgreSQL los redondearía",
+            "fuente": "cnbv",
+            "prueba": "institucional MXN: ≤6 decimales",
+            "resultado": "advertencia"
+          },
+          {
+            "detalle": "3655 valores exceden la escala del esquema; PostgreSQL los redondearía",
+            "fuente": "cnbv",
+            "prueba": "institucional %: ≤10 decimales",
+            "resultado": "advertencia"
+          }
+        ],
+        "ok": 56,
+        "pruebas": [
+          "ok: cnbv_sector_mes: archivo existe",
+          "ok: cnbv_sector_mes: columnas del contrato",
+          "ok: cnbv_sector_mes: filas declaradas",
+          "ok: cnbv_sector_mes: grano único ['mes', 'fila_series']",
+          "ok: cnbv_institucion_trim: archivo existe",
+          "ok: cnbv_institucion_trim: columnas del contrato",
+          "ok: cnbv_institucion_trim: filas declaradas",
+          "ok: cnbv_institucion_trim: grano único ['mes', 'clave_seis']",
+          "ok: cnbv_total_trim: archivo existe",
+          "ok: cnbv_total_trim: columnas del contrato",
+          "ok: cnbv_total_trim: filas declaradas",
+          "ok: cnbv_total_trim: grano único ['mes']",
+          "ok: sector: 26 conceptos aprobados",
+          "ok: sector: meses consecutivos de la ventana configurada",
+          "ok: sector: escala millones→MXN exacta; conteos y % sin escalar",
+          "ok: sector: sin nulos en la ventana",
+          "advertencia: sector valor: ≤6 decimales",
+          "ok: KPI imor: recomputado = publicado (fila 177), 12 meses 2025",
+          "ok: KPI imor 2025-03 vs catalogo_kpis.md",
+          "ok: KPI icor: recomputado = publicado (fila 185), 12 meses 2025",
+          "ok: KPI icor 2025-03 vs catalogo_kpis.md",
+          "ok: KPI liquidez: recomputado = publicado (fila 193), 12 meses 2025",
+          "ok: KPI liquidez 2025-03 vs catalogo_kpis.md",
+          "ok: KPI nicap: recomputado = publicado (fila 210), 12 meses 2025",
+          "ok: KPI nicap 2025-03 vs catalogo_kpis.md",
+          "ok: KPI capital_activo: recomputado = publicado (fila 198), 12 meses 2025",
+          "ok: KPI capital_activo 2025-03 vs catalogo_kpis.md",
+          "ok: KPI roa: recomputado = publicado (fila 196), 12 meses 2025",
+          "ok: KPI roa 2025-03 vs catalogo_kpis.md",
+          "ok: KPI tasa_activa: recomputado = publicado (fila 217), 12 meses 2025",
+          "ok: KPI tasa_activa 2025-03 vs catalogo_kpis.md",
+          "ok: KPI tasa_pasiva: recomputado = publicado (fila 224), 12 meses 2025",
+          "ok: KPI tasa_pasiva 2025-03 vs catalogo_kpis.md",
+          "ok: KPI colocacion_captacion 2025-03 vs catalogo_kpis.md",
+          "ok: KPI mujeres 2025-03 vs catalogo_kpis.md",
+          "ok: institucional: 155 sociedades por corte",
+          "ok: institucional: cortes trimestrales 2025",
+          "ok: institucional: clave_seis de 6 dígitos y = 0+clave_boletin",
+          "ok: institucional: 155 claves distintas en la unión",
+          "ok: institucional: sin filas de total",
+          "ok: institucional: estado_reporte en dominio",
+          "ok: institucional: \"publicado\" sin nulos y nulos con marca de origen",
+          "ok: institucional: categoría NICAP en {1,2,3,4} o NULL",
+          "ok: institucional: conteos enteros",
+          "advertencia: institucional MXN: ≤6 decimales",
+          "advertencia: institucional %: ≤10 decimales",
+          "ok: CPM 2025-03-01: socios",
+          "ok: CPM 2025-03-01: IMOR publicado",
+          "ok: CPM 2025-03-01: ICOR derivado (EF/Instituciones (2))",
+          "ok: CPM 2025-12-01: socios",
+          "ok: CPM 2025-12-01: IMOR publicado",
+          "ok: CPM 2025-12-01: ICOR derivado (EF/Instituciones (2))",
+          "ok: total: 4 cortes",
+          "ok: total 2025-03-01: colocación/captación institucional",
+          "ok: total 2025-12-01: colocación/captación institucional",
+          "ok: total 2025-03-01: Σ activo de sociedades = TOTAL publicado (±1 MXN)",
+          "ok: total 2025-06-01: Σ activo de sociedades = TOTAL publicado (±1 MXN)",
+          "ok: total 2025-09-01: Σ activo de sociedades = TOTAL publicado (±1 MXN)",
+          "ok: total 2025-12-01: Σ activo de sociedades = TOTAL publicado (±1 MXN)"
+        ],
+        "total": 59
+      },
+      "version_proceso": "etl-local-fase3-1.0"
+    },
+    "fonacot": {
+      "conciliacion": {
+        "2025-Q1": {
+          "ambitos": 33,
+          "archivos": {
+            "creditos": "data/raw/fonacot/Trabajadores por género y entidad federativa.csv",
+            "monto": "data/raw/fonacot/Importe de créditos ejercidos por género y entidad federativa.csv"
+          },
+          "creditos": 503416,
+          "filas": 198,
+          "monto_mxn": "15525525836.55",
+          "sin_pareja": 0
+        },
+        "2025-Q2": {
+          "ambitos": 33,
+          "archivos": {
+            "creditos": "data/raw/fonacot/trabajadores_genero_entidad_federativa.csv",
+            "monto": "data/raw/fonacot/importe_creditos_genero_entidad_federativa.csv"
+          },
+          "creditos": 510842,
+          "filas": 198,
+          "monto_mxn": "15838163285.81",
+          "sin_pareja": 0
+        },
+        "2025-Q3": {
+          "ambitos": 33,
+          "archivos": {
+            "creditos": "data/raw/fonacot/datos_abiertos_trabajadores_con_credito_genero_y_entidad_federativa_3er_TRIM_2025.csv",
+            "monto": "data/raw/fonacot/datos_abiertos_importe_credito_genero_y_entidad_federativa_3er_TRIM_2025.csv"
+          },
+          "creditos": 601649,
+          "filas": 198,
+          "monto_mxn": "18517548812.57",
+          "sin_pareja": 0
+        },
+        "2025-Q4": {
+          "ambitos": 33,
+          "archivos": {
+            "creditos": "data/raw/fonacot/datos_abiertos_trabajadores_con_credito_genero_y_entidad_federativa_4to_TRIM_2025.csv",
+            "monto": "data/raw/fonacot/datos_abiertos_importe_credito_genero_y_entidad_federativa_4to_TRIM_2025.csv"
+          },
+          "creditos": 561561,
+          "filas": 198,
+          "monto_mxn": "16889088475.45",
+          "sin_pareja": 0
+        }
+      },
+      "entradas": [
+        {
+          "archivo": "data/raw/fonacot/Importe de créditos ejercidos por género y entidad federativa.csv",
+          "periodo": "2025-Q1 (ene-mar)",
+          "sha256": "e0b7b4f10d24df84d1381eab3ef80e37a250e4d8d6cfff9617e4b711933d2efb",
+          "tamano_bytes": 4472
+        },
+        {
+          "archivo": "data/raw/fonacot/Trabajadores por género y entidad federativa.csv",
+          "periodo": "2025-Q1 (ene-mar)",
+          "sha256": "e379ea2f4e01bd679b9310466affb119017203bdeea861ec6dd7bbf40de033db",
+          "tamano_bytes": 2343
+        },
+        {
+          "archivo": "data/raw/fonacot/datos_abiertos_importe_credito_genero_y_entidad_federativa_3er_TRIM_2025.csv",
+          "periodo": "2025-Q3 (jul-sep)",
+          "sha256": "8a254fee58c924dc28928f51c59b8868fb7e113e9325341d309d517cf82d9df1",
+          "tamano_bytes": 2859
+        },
+        {
+          "archivo": "data/raw/fonacot/datos_abiertos_importe_credito_genero_y_entidad_federativa_4to_TRIM_2025.csv",
+          "periodo": "2025-Q4 (oct-dic)",
+          "sha256": "0387cb5dd73069f6b071d99c63cc0972fc547e10df45ea250e6b50a2c981e21f",
+          "tamano_bytes": 3452
+        },
+        {
+          "archivo": "data/raw/fonacot/datos_abiertos_trabajadores_con_credito_genero_y_entidad_federativa_3er_TRIM_2025.csv",
+          "periodo": "2025-Q3 (jul-sep)",
+          "sha256": "ca182f93d07d20e3fe66e3bac6042f657086b6f79a34ad85a890d2ac12ea75c9",
+          "tamano_bytes": 1436
+        },
+        {
+          "archivo": "data/raw/fonacot/datos_abiertos_trabajadores_con_credito_genero_y_entidad_federativa_4to_TRIM_2025.csv",
+          "periodo": "2025-Q4 (oct-dic)",
+          "sha256": "6f7d850f39100e0139d17a2feddd58a24bb784677900439f8e3ed5b7c9ff2141",
+          "tamano_bytes": 1449
+        },
+        {
+          "archivo": "data/raw/fonacot/importe_creditos_genero_entidad_federativa.csv",
+          "periodo": "2025-Q2 (abr-jun)",
+          "sha256": "7c42cda53a6f8cbc3efae50438a6ba6c99602195720ed5b57bd9af87a61fc750",
+          "tamano_bytes": 3052
+        },
+        {
+          "archivo": "data/raw/fonacot/trabajadores_genero_entidad_federativa.csv",
+          "periodo": "2025-Q2 (abr-jun)",
+          "sha256": "088c5db71f772df07abcbb548de4e77af232783aaabfd1a667a6d894df19f96a",
+          "tamano_bytes": 1448
+        }
+      ],
+      "rechazos": {
+        "archivo": "rechazos_fonacot.csv",
+        "filas": 0,
+        "sha256": "d105c2b11bd65c24ae29b132b0342cb8101437054f916bac28973de4059e73c8"
+      },
+      "salidas": [
+        {
+          "archivo": "fonacot.csv",
+          "columnas": [
+            "mes",
+            "trimestre",
+            "tipo_ambito",
+            "ambito_canonico",
+            "genero",
+            "creditos",
+            "monto_mxn",
+            "etiqueta_creditos_original",
+            "etiqueta_monto_original",
+            "columna_original",
+            "archivo_creditos",
+            "archivo_monto"
+          ],
+          "filas": 792,
+          "grano": [
+            "mes",
+            "tipo_ambito",
+            "ambito_canonico",
+            "genero"
+          ],
+          "nombre": "fonacot",
+          "sha256": "cde3c710d9c3ab33376777a4863987f82096f2c9527dbb58e106f36276350d01",
+          "tabla_destino": "hecho_fonacot_mes (+ dim_ambito_fonacot, dim_genero_fonacot)",
+          "unidades": {
+            "creditos": "conteo mensual de créditos ejercidos (no personas únicas)",
+            "monto_mxn": "pesos mexicanos, flujo mensual"
+          }
+        }
+      ],
+      "validaciones": {
+        "advertencias": [],
+        "ok": 22,
+        "pruebas": [
+          "ok: fonacot: archivo existe",
+          "ok: fonacot: columnas del contrato",
+          "ok: fonacot: filas declaradas",
+          "ok: fonacot: grano único ['mes', 'tipo_ambito', 'ambito_canonico', 'genero']",
+          "ok: fonacot: 792 filas (12 meses × 33 ámbitos × 2 géneros)",
+          "ok: fonacot: 33 ámbitos por mes (32 entidades + APP MOVIL)",
+          "ok: fonacot: APP MOVIL solo como canal",
+          "ok: fonacot: Veracruz canonizado",
+          "ok: fonacot: géneros mujeres/hombres",
+          "ok: fonacot: ambos archivos y etiquetas presentes",
+          "ok: fonacot: créditos enteros ≥0",
+          "ok: fonacot: sin celdas vacías",
+          "ok: fonacot monto: ≤2 decimales",
+          "ok: fonacot 2025-Q1: Σ créditos = CSV",
+          "ok: fonacot 2025-Q1: Σ monto = CSV",
+          "ok: fonacot 2025-Q2: Σ créditos = CSV",
+          "ok: fonacot 2025-Q2: Σ monto = CSV",
+          "ok: fonacot 2025-Q3: Σ créditos = CSV",
+          "ok: fonacot 2025-Q3: Σ monto = CSV",
+          "ok: fonacot 2025-Q4: Σ créditos = CSV",
+          "ok: fonacot 2025-Q4: Σ monto = CSV",
+          "ok: fonacot Q1: participación femenina de créditos"
+        ],
+        "total": 22
+      },
+      "version_proceso": "etl-local-fase3-1.0"
+    },
+    "sniiv": {
+      "conciliacion": {
+        "acciones": 998745,
+        "claves_unicas": 325649,
+        "contraste_json": {
+          "acciones_json": 998814,
+          "monto_json": "617373196605.69470969562",
+          "nota": "El JSON está agregado y no concilia con el CSV (ver perfil_datos.md §5); no se carga ni se suma.",
+          "objetos_json": 3989
+        },
+        "filas": 325649,
+        "monto_mxn": "617246458236.39",
+        "nulos": {
+          "cve_ent": 11,
+          "cve_mun": 395,
+          "destino": 0,
+          "edad_rango": 6552,
+          "ingresos_rango": 6299,
+          "modalidad": 0,
+          "municipio": 10,
+          "organismo": 0,
+          "sexo": 399,
+          "tipo": 14,
+          "vivienda_valor": 71623
+        },
+        "sin_sexo_acciones": 4,
+        "sin_sexo_filas": 399,
+        "sin_sexo_monto_mxn": "265488266.35"
+      },
+      "entradas": [
+        {
+          "archivo": "data/raw/sniiv/financiamientos_2025.csv",
+          "periodo": "2025 (meses 1-12)",
+          "sha256": "eee02be265b6d14ab72532b6640ce10b0c7526287a402689d0603075749451f3",
+          "tamano_bytes": 21871842
+        },
+        {
+          "archivo": "data/raw/sniiv/diccionario_financiamiento.xlsx",
+          "periodo": "diccionario de la serie Financiamientos",
+          "sha256": "6ab7b55a9ad90e65b3f76e97268922cd33839dc27bf0e35ff24f8845b832a9ac",
+          "tamano_bytes": 78783
+        },
+        {
+          "archivo": "data/raw/sniiv/financiamiento_2025_api.json",
+          "periodo": "2025 (enero-diciembre; respuesta cruda de API)",
+          "sha256": "783d2c3f48ebd78bb0dfe50719b1d4d679855db2c05ec9dd472628f2ec453e14",
+          "tamano_bytes": 582560
+        }
+      ],
+      "rechazos": {
+        "archivo": "rechazos_sniiv.csv",
+        "filas": 0,
+        "sha256": "d105c2b11bd65c24ae29b132b0342cb8101437054f916bac28973de4059e73c8"
+      },
+      "salidas": [
+        {
+          "archivo": "sniiv.csv",
+          "columnas": [
+            "mes",
+            "cve_ent",
+            "entidad",
+            "cve_mun",
+            "municipio",
+            "organismo",
+            "modalidad",
+            "destino",
+            "tipo",
+            "sexo",
+            "edad_rango",
+            "ingresos_rango",
+            "vivienda_valor",
+            "acciones",
+            "monto_mxn",
+            "fila_origen"
+          ],
+          "filas": 325649,
+          "grano": [
+            "mes",
+            "cve_ent",
+            "cve_mun",
+            "organismo",
+            "modalidad",
+            "destino",
+            "tipo",
+            "sexo",
+            "edad_rango",
+            "ingresos_rango",
+            "vivienda_valor"
+          ],
+          "nombre": "sniiv",
+          "sha256": "cf4d79bbb4c5c190b23aa7277f08bd3e41588347a107b26862ff9467ce435804",
+          "tabla_destino": "hecho_sniiv_mes",
+          "unidades": {
+            "acciones": "conteo de financiamientos",
+            "códigos": "texto exacto del CSV (diccionario_financiamiento.xlsx)",
+            "monto_mxn": "pesos mexicanos, 2 decimales del original"
+          }
+        }
+      ],
+      "validaciones": {
+        "advertencias": [],
+        "ok": 13,
+        "pruebas": [
+          "ok: sniiv: archivo existe",
+          "ok: sniiv: columnas del contrato",
+          "ok: sniiv: filas declaradas",
+          "ok: sniiv: grano único ['mes', 'cve_ent', 'cve_mun', 'organismo', 'modalidad', 'destino', 'tipo', 'sexo', 'edad_rango', 'ingresos_rango', 'vivienda_valor']",
+          "ok: sniiv: 325,649 registros",
+          "ok: sniiv: 998,745 acciones",
+          "ok: sniiv: $617,246,458,236.39 MXN",
+          "ok: sniiv: 399 filas sin sexo que suman 4 acciones",
+          "ok: sniiv: meses 2025-01…2025-12",
+          "ok: sniiv: cve_ent de 2 caracteres (ceros iniciales conservados)",
+          "ok: sniiv: acciones enteras ≥0",
+          "ok: sniiv monto: ≤2 decimales",
+          "ok: sniiv: fila_origen única (sin duplicar registros)"
+        ],
+        "total": 13
+      },
+      "version_proceso": "etl-local-fase3-1.0"
+    }
+  }
+}
