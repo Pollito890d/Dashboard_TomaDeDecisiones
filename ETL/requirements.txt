@@ -1,0 +1,18 @@
+# Fase III — ETL local (extracción, transformación y validación) sin PostgreSQL.
+# Versiones verificadas con Python 3.14 en Windows x64.
+# Instalar desde la raíz: .\.venv\Scripts\python.exe -m pip install -r ETL\requirements.txt
+pandas==3.1.1
+numpy==2.5.5
+python-dateutil==4.0.0
+tzdata==2026.6
+openpyxl==3.1.5
+et-xmlfile==2.0.0
+python-dotenv==1.2.4
+
+# Pruebas locales
+pytest==9.2.0
+iniconfig==2.3.1
+packaging==26.4
+pluggy==1.7.0
+Pygments==2.21.0
+colorama==0.4.6
