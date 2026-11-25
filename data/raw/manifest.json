@@ -1,0 +1,290 @@
+{
+  "paso": "03 - Obtener datos abiertos oficiales",
+  "fecha_descarga": "2026-11-24",
+  "zona_horaria": "America/Mexico_City (UTC-06:00)",
+  "criterio_estado": {
+    "validado": "Archivo oficial descargado, no modificado, con formato/contenido/tama\u00f1o verificados y SHA-256 calculado sobre el archivo final.",
+    "pendiente_manual": "Fuente intentada pero no descargable/validable; NO aprobada para el dashboard.",
+    "no_usado_403": "URL oficial intentada que respondi\u00f3 403; sustituida por alternativa oficial descargada y validada."
+  },
+  "fuentes": {
+    "cnbv": {
+      "organismo": "Comisi\u00f3n Nacional Bancaria y de Valores",
+      "paginas": [
+        "https://portafolioinfo.cnbv.gob.mx/PUBLICACIONES/Boletines/Paginas/SOCAPS.aspx",
+        "https://portafolioinfo.cnbv.gob.mx/portafolioinformacion/forms/allitems.aspx"
+      ],
+      "estado": "validado",
+      "nota": "Boletines estad\u00edsticos trimestrales 2025 y series hist\u00f3ricas mensuales SH_SOCAPS.xlsm descargados y validados. Las rutas antiguas sc_infosituacion.aspx quedan documentadas como obsoletas, pero no son necesarias."
+    },
+    "fonacot": {
+      "organismo": "Instituto del Fondo Nacional para el Consumo de los Trabajadores",
+      "paginas": [
+        "https://www.datos.gob.mx/dataset/trabajadores_credito_ejercido_genero_entidad_federativa",
+        "https://www.datos.gob.mx/dataset/importe_creditos_ejercidos_genero_entidad-federativa",
+        "https://www.fonacot.gob.mx/TransparenciaRendicionCuentas/Paginas/Datos-Abiertos.aspx"
+      ],
+      "estado": "validado",
+      "nota": "Los recursos de repodatos.atdt.gob.mx referenciados por datos.gob.mx devolvieron 403; se usaron los archivos hom\u00f3logos publicados por fonacot.gob.mx."
+    },
+    "sniiv": {
+      "organismo": "Sistema Nacional de Informaci\u00f3n e Indicadores de Vivienda (SEDATU)",
+      "pagina": "https://sniiv.sedatu.gob.mx/Reporte/Datos_abiertos",
+      "estado": "validado",
+      "nota": "Se conserv\u00f3 la respuesta cruda de la API propuesta, los archivos anuales resueltos por ReporteAPI y el diccionario de datos."
+    }
+  },
+  "archivos": [
+    {
+      "fuente": "cnbv",
+      "url": "https://portafolioinfo.cnbv.gob.mx/PortafolioInformacion/BE_SOCAPS_202503.xlsx",
+      "archivo": "data/raw/cnbv/BE_SOCAPS_202503.xlsx",
+      "periodo": "2025-Q1 (marzo)",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 838766,
+      "sha256": "935b657d7ded42de228dcbd22e6986759032747db7a275d9725f1dcce76703cc",
+      "estado": "validado",
+      "formato": "xlsx",
+      "validacion": "ZIP/OpenXML v\u00e1lido; 13 hojas; 'Universo' con 330 filas; sin p\u00e1gina HTML de error"
+    },
+    {
+      "fuente": "cnbv",
+      "url": "https://portafolioinfo.cnbv.gob.mx/PortafolioInformacion/BE_SOCAPS_202506.xlsx",
+      "archivo": "data/raw/cnbv/BE_SOCAPS_202506.xlsx",
+      "periodo": "2025-Q2 (junio)",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 1500417,
+      "sha256": "f797f4a110128bc7d2c6478e7cbf698a659f2c2950e2896fe6564306e10a640d",
+      "estado": "validado",
+      "formato": "xlsx",
+      "validacion": "ZIP/OpenXML v\u00e1lido; 13 hojas; sin p\u00e1gina HTML de error"
+    },
+    {
+      "fuente": "cnbv",
+      "url": "https://portafolioinfo.cnbv.gob.mx/PortafolioInformacion/BE_SOCAPS_202509.xlsx",
+      "archivo": "data/raw/cnbv/BE_SOCAPS_202509.xlsx",
+      "periodo": "2025-Q3 (septiembre)",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 839474,
+      "sha256": "207c7b769f3334c1974d8170fe58e3c79743d1d90e0233f89f2de6461a3e0a39",
+      "estado": "validado",
+      "formato": "xlsx",
+      "validacion": "ZIP/OpenXML v\u00e1lido; 13 hojas; sin p\u00e1gina HTML de error"
+    },
+    {
+      "fuente": "cnbv",
+      "url": "https://portafolioinfo.cnbv.gob.mx/PortafolioInformacion/BE_SOCAPS_202512.xlsx",
+      "archivo": "data/raw/cnbv/BE_SOCAPS_202512.xlsx",
+      "periodo": "2025-Q4 (diciembre)",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 1509189,
+      "sha256": "d607d217963782ddb1dd6bac0a14ccdb30832e80e5ee34bba04e6a23873eccd9",
+      "estado": "validado",
+      "formato": "xlsx",
+      "validacion": "ZIP/OpenXML v\u00e1lido; 12 hojas; 'Universo' indica autorizadas al 31 de diciembre de 2025; sin p\u00e1gina HTML de error"
+    },
+    {
+      "fuente": "cnbv",
+      "url": "https://portafolioinfo.cnbv.gob.mx/PortafolioInformacion/SH_SOCAPS.xlsm",
+      "url_fuente": "https://portafolioinfo.cnbv.gob.mx/portafolioinformacion/forms/allitems.aspx",
+      "archivo": "data/raw/cnbv/SH_SOCAPS.xlsm",
+      "periodo": "2013-01 a 2026-09 (incluye 2025 mensual)",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 30970197,
+      "sha256": "c776388a8201863a53c1da6af2824b6c9b1498bf3727da52d3da99479bb1acee",
+      "estado": "validado",
+      "formato": "xlsm",
+      "validacion": "ZIP/OOXML v\u00e1lido (testzip OK); 6 hojas Portada/Cat\u00e1logo/Nombres/TD/Series/Notas; hoja 'Series' con 1107 filas x 204 columnas y 12 columnas para 2025; sin p\u00e1gina HTML de error"
+    },
+    {
+      "fuente": "fonacot",
+      "url": "https://www.fonacot.gob.mx/TransparenciaRendicionCuentas/Documents/Datos%20Abiertos/2025/1erTrimestre/Trabajadores%20por%20g%C3%A9nero%20y%20entidad%20federativa.csv",
+      "url_fuente": "https://www.datos.gob.mx/dataset/trabajadores_credito_ejercido_genero_entidad_federativa",
+      "archivo": "data/raw/fonacot/Trabajadores por g\u00e9nero y entidad federativa.csv",
+      "periodo": "2025-Q1 (ene-mar)",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 2343,
+      "sha256": "e379ea2f4e01bd679b9310466affb119017203bdeea861ec6dd7bbf40de033db",
+      "estado": "validado",
+      "formato": "csv",
+      "validacion": "CSV con 39 filas y cabecera de meses/g\u00e9nero; sin HTML"
+    },
+    {
+      "fuente": "fonacot",
+      "url": "https://www.fonacot.gob.mx/TransparenciaRendicionCuentas/Documents/Datos%20Abiertos/2025/2doTrimestre/trabajadores_genero_entidad_federativa.csv",
+      "url_fuente": "https://www.datos.gob.mx/dataset/trabajadores_credito_ejercido_genero_entidad_federativa",
+      "archivo": "data/raw/fonacot/trabajadores_genero_entidad_federativa.csv",
+      "periodo": "2025-Q2 (abr-jun)",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 1448,
+      "sha256": "088c5db71f772df07abcbb548de4e77af232783aaabfd1a667a6d894df19f96a",
+      "estado": "validado",
+      "formato": "csv",
+      "validacion": "CSV con 33 filas y cabecera de meses/g\u00e9nero; sin HTML"
+    },
+    {
+      "fuente": "fonacot",
+      "url": "https://www.fonacot.gob.mx/TransparenciaRendicionCuentas/Documents/Datos%20Abiertos/2025/3erTrimestre/datos_abiertos_trabajadores_con_credito_genero_y_entidad_federativa_3er_TRIM_2025.csv",
+      "url_fuente": "https://www.datos.gob.mx/dataset/trabajadores_credito_ejercido_genero_entidad_federativa",
+      "archivo": "data/raw/fonacot/datos_abiertos_trabajadores_con_credito_genero_y_entidad_federativa_3er_TRIM_2025.csv",
+      "periodo": "2025-Q3 (jul-sep)",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 1436,
+      "sha256": "ca182f93d07d20e3fe66e3bac6042f657086b6f79a34ad85a890d2ac12ea75c9",
+      "estado": "validado",
+      "formato": "csv",
+      "validacion": "CSV con 33 filas y cabecera de meses/g\u00e9nero; sin HTML"
+    },
+    {
+      "fuente": "fonacot",
+      "url": "https://www.fonacot.gob.mx/TransparenciaRendicionCuentas/Documents/Datos%20Abiertos/2025/4toTrimestre/datos_abiertos_trabajadores_con_credito_genero_y_entidad_federativa_4to_TRIM_2025.csv",
+      "url_fuente": "https://www.datos.gob.mx/dataset/trabajadores_credito_ejercido_genero_entidad_federativa",
+      "archivo": "data/raw/fonacot/datos_abiertos_trabajadores_con_credito_genero_y_entidad_federativa_4to_TRIM_2025.csv",
+      "periodo": "2025-Q4 (oct-dic)",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 1449,
+      "sha256": "6f7d850f39100e0139d17a2feddd58a24bb784677900439f8e3ed5b7c9ff2141",
+      "estado": "validado",
+      "formato": "csv",
+      "validacion": "CSV con 33 filas y cabecera de meses/g\u00e9nero; sin HTML"
+    },
+    {
+      "fuente": "fonacot",
+      "url": "https://www.fonacot.gob.mx/TransparenciaRendicionCuentas/Documents/Datos%20Abiertos/2025/1erTrimestre/Importe%20de%20cr%C3%A9ditos%20ejercidos%20por%20g%C3%A9nero%20y%20entidad%20federativa.csv",
+      "url_fuente": "https://www.datos.gob.mx/dataset/importe_creditos_ejercidos_genero_entidad-federativa",
+      "archivo": "data/raw/fonacot/Importe de cr\u00e9ditos ejercidos por g\u00e9nero y entidad federativa.csv",
+      "periodo": "2025-Q1 (ene-mar)",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 4472,
+      "sha256": "e0b7b4f10d24df84d1381eab3ef80e37a250e4d8d6cfff9617e4b711933d2efb",
+      "estado": "validado",
+      "formato": "csv",
+      "validacion": "CSV con 44 filas y montos por mes/g\u00e9nero; sin HTML"
+    },
+    {
+      "fuente": "fonacot",
+      "url": "https://www.fonacot.gob.mx/TransparenciaRendicionCuentas/Documents/Datos%20Abiertos/2025/2doTrimestre/importe_creditos_genero_entidad_federativa.csv",
+      "url_fuente": "https://www.datos.gob.mx/dataset/importe_creditos_ejercidos_genero_entidad-federativa",
+      "archivo": "data/raw/fonacot/importe_creditos_genero_entidad_federativa.csv",
+      "periodo": "2025-Q2 (abr-jun)",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 3052,
+      "sha256": "7c42cda53a6f8cbc3efae50438a6ba6c99602195720ed5b57bd9af87a61fc750",
+      "estado": "validado",
+      "formato": "csv",
+      "validacion": "CSV con 38 filas y montos por mes/g\u00e9nero; sin HTML"
+    },
+    {
+      "fuente": "fonacot",
+      "url": "https://www.fonacot.gob.mx/TransparenciaRendicionCuentas/Documents/Datos%20Abiertos/2025/3erTrimestre/datos_abiertos_importe_credito_genero_y_entidad_federativa_3er_TRIM_2025.csv",
+      "url_fuente": "https://www.datos.gob.mx/dataset/importe_creditos_ejercidos_genero_entidad-federativa",
+      "archivo": "data/raw/fonacot/datos_abiertos_importe_credito_genero_y_entidad_federativa_3er_TRIM_2025.csv",
+      "periodo": "2025-Q3 (jul-sep)",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 2859,
+      "sha256": "8a254fee58c924dc28928f51c59b8868fb7e113e9325341d309d517cf82d9df1",
+      "estado": "validado",
+      "formato": "csv",
+      "validacion": "CSV con 35 filas y montos por mes/g\u00e9nero; sin HTML"
+    },
+    {
+      "fuente": "fonacot",
+      "url": "https://www.fonacot.gob.mx/TransparenciaRendicionCuentas/Documents/Datos%20Abiertos/2025/4toTrimestre/datos_abiertos_importe_credito_genero_y_entidad_federativa_4to_TRIM_2025.csv",
+      "url_fuente": "https://www.datos.gob.mx/dataset/importe_creditos_ejercidos_genero_entidad-federativa",
+      "archivo": "data/raw/fonacot/datos_abiertos_importe_credito_genero_y_entidad_federativa_4to_TRIM_2025.csv",
+      "periodo": "2025-Q4 (oct-dic)",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 3452,
+      "sha256": "0387cb5dd73069f6b071d99c63cc0972fc547e10df45ea250e6b50a2c981e21f",
+      "estado": "validado",
+      "formato": "csv",
+      "validacion": "CSV con 39 filas y montos por mes/g\u00e9nero; sin HTML"
+    },
+    {
+      "fuente": "fonacot",
+      "url": "https://www.fonacot.gob.mx/TransparenciaRendicionCuentas/Documents/Datos%20Abiertos/2023/Diccionario%20Conjunto%20de%20Datos.pdf",
+      "url_fuente": "https://www.fonacot.gob.mx/TransparenciaRendicionCuentas/Paginas/Datos-Abiertos.aspx",
+      "archivo": "data/raw/fonacot/Diccionario Conjunto de Datos.pdf",
+      "periodo": "metadato vigente en la fuente (2023)",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 163070,
+      "sha256": "f46988ac9a9aa036915242f220131f146171412b898077b254f526c95b34e3c3",
+      "estado": "validado",
+      "formato": "pdf",
+      "validacion": "Cabecera %PDF-1.5; tama\u00f1o no vac\u00edo"
+    },
+    {
+      "fuente": "fonacot",
+      "url": "https://www.fonacot.gob.mx/TransparenciaRendicionCuentas/Documents/Inventario%20de%20Datos%20Abiertos.xlsx",
+      "url_fuente": "https://www.fonacot.gob.mx/TransparenciaRendicionCuentas/Paginas/Datos-Abiertos.aspx",
+      "archivo": "data/raw/fonacot/Inventario de Datos Abiertos.xlsx",
+      "periodo": "metadato",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 21544,
+      "sha256": "117ce9ab61e0d325e79bf55d5b12bfb082e54b0d570972ac943fb461b73e042e",
+      "estado": "validado",
+      "formato": "xlsx",
+      "validacion": "ZIP/OpenXML v\u00e1lido; sin p\u00e1gina HTML de error"
+    },
+    {
+      "fuente": "sniiv",
+      "url": "https://sniiv.sedatu.gob.mx/api/CuboAPI/GetFinanciamiento/2025,2025/00/000/anio,mes,estado,genero,organismo",
+      "url_fuente": "https://sniiv.sedatu.gob.mx/Reporte/Datos_abiertos",
+      "archivo": "data/raw/sniiv/financiamiento_2025_api.json",
+      "periodo": "2025 (enero-diciembre; respuesta cruda de API)",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 582560,
+      "sha256": "783d2c3f48ebd78bb0dfe50719b1d4d679855db2c05ec9dd472628f2ec453e14",
+      "estado": "validado",
+      "formato": "json",
+      "validacion": "JSON parseable; 3989 objetos; campos anio/mes/estado/organismo/sexo/acciones/monto"
+    },
+    {
+      "fuente": "sniiv",
+      "url": "https://sistemas.sedatu.gob.mx/repositorio/proxy/alfresco-noauth/api/internal/shared/node/BOZvuxwVRmy62_qG966obQ/content/financiamientos_2025.csv?a=true",
+      "url_fuente": "https://sniiv.sedatu.gob.mx/api/ReporteAPI/GetDocumentoAnio/2/2025/1",
+      "archivo": "data/raw/sniiv/financiamientos_2025.csv",
+      "periodo": "2025 (meses 1-12)",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 21871842,
+      "sha256": "eee02be265b6d14ab72532b6640ce10b0c7526287a402689d0603075749451f3",
+      "estado": "validado",
+      "formato": "csv",
+      "validacion": "325649 registros + cabecera; 16 columnas; meses 1-12; codificaci\u00f3n cp1252/Latin-1; sin HTML"
+    },
+    {
+      "fuente": "sniiv",
+      "url": "https://sistemas.sedatu.gob.mx/repositorio/proxy/alfresco-noauth/api/internal/shared/node/1F6G2Hv5QZeewiI0NRX8bA/content/financiamientos_2025.xlsx?a=true",
+      "url_fuente": "https://sniiv.sedatu.gob.mx/api/ReporteAPI/GetDocumentoAnio/2/2025/2",
+      "archivo": "data/raw/sniiv/financiamientos_2025.xlsx",
+      "periodo": "2025 (meses 1-12)",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 24377044,
+      "sha256": "6043a7174ddcd141f7c433bb29e7e8c14729dd39ced2e07e9012a1a161ec3e94",
+      "estado": "validado",
+      "formato": "xlsx",
+      "validacion": "ZIP/OpenXML v\u00e1lido; 1 hoja; 325650 filas x 16 columnas; sin HTML"
+    },
+    {
+      "fuente": "sniiv",
+      "url": "https://sistemas.sedatu.gob.mx/repositorio/proxy/alfresco-noauth/api/internal/shared/node/NGC6R5CLQ6SCexmbnOq4ZA/content/diccionario_financiamiento.xlsx?&a=true",
+      "url_fuente": "https://sniiv.sedatu.gob.mx/Reporte/Datos_abiertos",
+      "archivo": "data/raw/sniiv/diccionario_financiamiento.xlsx",
+      "periodo": "diccionario de la serie Financiamientos",
+      "fecha_descarga": "2026-11-24",
+      "tamano_bytes": 78783,
+      "sha256": "6ab7b55a9ad90e65b3f76e97268922cd33839dc27bf0e35ff24f8845b832a9ac",
+      "estado": "validado",
+      "formato": "xlsx",
+      "validacion": "ZIP/OpenXML v\u00e1lido; 1 hoja 'Financiamientos' con 1012 filas de diccionario"
+    }
+  ],
+  "incidencias": [
+    {
+      "fuente": "fonacot",
+      "url": "https://repodatos.atdt.gob.mx/api_update/fonacot/",
+      "estado": "no_usado_403",
+      "detalle": "Los 8 recursos CSV referenciados por datos.gob.mx respondieron HTTP 403 incluso con cabeceras de navegador. Se descargaron los archivos equivalentes desde fonacot.gob.mx."
+    }
+  ]
+}
