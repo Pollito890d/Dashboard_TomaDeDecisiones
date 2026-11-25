@@ -1,49 +1,96 @@
-# =========================
-# 1. Frontend (Node / Vite)
-# =========================
+# =================================================================
+# 1. Dependencias y entornos virtuales (no versionar)
+# =================================================================
 node_modules/
-dist/
-dist-ssr/
-*.local
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# =========================
-# 2. Backend & ETL (Python)
-# =========================
-__pycache__/
-*.py[cod]
-*$py.class
 venv/
 .venv/
 env/
 ENV/
 *.egg-info/
-.pytest_cache/
+*.egg
 
-# =========================
-# 3. Variables de entorno y Secretos (¡NUNCA SUBIR!)
-# =========================
+# =================================================================
+# 2. Compilaciones y artefactos generados
+# =================================================================
+dist/
+dist-ssr/
+build/
+*.tsbuildinfo
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+
+# =================================================================
+# 3. Variables de entorno y credenciales (¡NUNCA SUBIR SECRETOS!)
+#    Los archivos .env.example SÍ se versionan como plantillas sin valores reales.
+# =================================================================
 .env
 .env.*
 !.env.example
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_dsa*
+credentials*.json
+service-account*.json
+.htpasswd
+.secrets/
+secrets/
 
-# =========================
-# 4. Datos pesados / Archivos temporales
-# =========================
-# Si descargan CSVs muy pesados (>50 MB) de FONACOT o SNIIV, ignórenlos o dejen solo muestras:
+# =================================================================
+# 4. Bases de datos locales y volcados (evitar datos personales)
+# =================================================================
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.sql.gz
+
+# =================================================================
+# 5. Datos descargados / temporales
+#    Los CSV reales de CNBV, FONACOT y SNIIV se versionarán solo si son
+#    datos abiertos curados y necesarios; nunca se generarán datos sintéticos.
+# =================================================================
 *.zip
 *.tar.gz
 *.bak
-*.sql.gz
+*.part
+*.crdownload
+*.download
+*.tmp
+*.temp
+*.orig
+~$*
 
-# =========================
-# 5. Sistema Operativo e IDEs
-# =========================
+# =================================================================
+# 6. Logs, cobertura y cachés de pruebas
+# =================================================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+coverage/
+htmlcov/
+
+# =================================================================
+# 7. Sistema operativo e IDEs
+# =================================================================
 .DS_Store
 Thumbs.db
+desktop.ini
 .vscode/
 .idea/
+*.code-workspace
 *.swp
+*.swo
