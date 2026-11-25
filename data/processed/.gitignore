@@ -1,0 +1,6 @@
+# Salidas regenerables del ETL (ETL/run_etl.py). Se versiona solo el manifiesto
+# determinista; los CSV y registros se regeneran desde data/raw/.
+*
+!.gitignore
+!.gitkeep
+!etl_manifest.json
