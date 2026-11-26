@@ -13,6 +13,7 @@ from app.schemas.consultas import (
     FonacotAmbitoTimestre,
     FonacotTrimestreResumen,
     Fuente,
+    Institucion,
     InstitucionTrimestreKpi,
     SectorBanda2025,
     SectorKpiMensual,
@@ -101,6 +102,18 @@ class InstitucionesResponse(_Respuesta):
     limitado: bool = Field(description="true cuando se alcanzó el parámetro limite.")
     sin_datos: bool = Field(description="true cuando no hay fichas para los filtros solicitados.")
     nota: str | None = Field(default=None, description="Advertencia metodológica, si aplica.")
+
+
+class InstitucionesCatalogoResponse(_Respuesta):
+    granularidad: Literal["catalogo_instituciones"] = Field(
+        default="catalogo_instituciones",
+        description="Catálogo completo de cooperativas, independiente del ranking.",
+    )
+    instituciones: list[Institucion] = Field(
+        default_factory=list, description="Todas las cooperativas del catálogo oficial."
+    )
+    total: int = Field(description="Número de cooperativas devueltas.")
+    sin_datos: bool = Field(description="true cuando el catálogo está vacío.")
 
 
 class PeriodosResponse(_Respuesta):

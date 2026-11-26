@@ -1,8 +1,8 @@
 # Contrato JSON de la API — Fase V (pasos 20 y 21)
 
 **Versión del contrato:** `1.0.0`  
-**Rama:** `feature/fase-5-backend`  
-**Estado:** endpoints de lectura sobre las vistas validadas de la Fase IV. No se ejecuta ETL, no se modifica PostgreSQL y no se modificó `Frontend/`.
+**Rama:** `feature/fase-6-frontend`  
+**Estado:** endpoints de lectura sobre las vistas validadas de la Fase IV. La fase VI agregó de forma compatible `GET /api/instituciones/catalogo` y el parámetro opcional `fuente` en `/api/periodos`; el frontend consume el contrato sin datos de demostración. Ver [`validacion_frontend.md`](validacion_frontend.md).
 
 Todas las respuestas de datos (y las respuestas de error controladas) incluyen:
 
@@ -55,7 +55,8 @@ Todas las consultas usan `v_ejecucion_activa`, por lo que no se mezclan instant�
 | `GET /api/health` | ninguno | `status`, `database`, `detail` · `200` / `503` | 1 objeto |
 | `GET /api/dashboard` | `periodo` (`YYYY-MM`), `anio` | `DashboardResponse` | 1 corte + hasta 12 filas de serie + 10 bandas |
 | `GET /api/instituciones` | `periodo`, `trimestre`, `clave_seis`, `anio`, `limite` (1–100, default 10) | `InstitucionesResponse` | `limite` fichas; `limitado` indica tope alcanzado |
-| `GET /api/periodos` | `anio`, `limite` (1–100, default 50) | `PeriodosResponse` | `limite` períodos |
+| `GET /api/instituciones/catalogo` | ninguno | `InstitucionesCatalogoResponse` | Todas las cooperativas del catálogo (155) |
+| `GET /api/periodos` | `anio`, `limite` (1–100, default 50), `fuente` opcional (`cnbv_sectorial`, `cnbv_institucional`, `fonacot`, `sniiv`) | `PeriodosResponse` | `limite` períodos; sin `fuente` conserva `dim_mes` |
 | `GET /api/fuentes` | `fuente` (`CNBV`/`FONACOT`/`SNIIV`), `rol` (`hechos`/`diccionario`/`validacion`), `limite` (1–100, default 25) | `FuentesResponse` | `limite` fuentes |
 | `GET /api/fonacot` | `anio`, `trimestre`, `incluir_ambitos` (default `false`) | `FonacotResponse` | 4 resúmenes anuales; el desglose solo si se pide |
 | `GET /api/sniiv` | `anio`, `incluir_entidades` (default `false`) | `SniivResponse` | 1 resumen anual; 33 entidades solo si se piden |
@@ -89,7 +90,7 @@ Todas las consultas usan `v_ejecucion_activa`, por lo que no se mezclan instant�
 
 ## 4. Sustitución de conceptos ficticios del mock
 
-`Frontend/src/App.jsx` y `Frontend/src/data/mockDashboardData.js` consumen un dataset sintético. **Ninguno de esos campos forma parte del contrato oficial.** Revisión sin modificación del frontend:
+La tabla siguiente documenta la sustitución histórica del dataset sintético del wireframe. En la fase VI el frontend ya consume el contrato oficial; **ninguno de esos campos forma parte del contrato**.
 
 | Concepto del mock (ficticio) | Indicador oficial que lo sustituye | Nota metodológica |
 |---|---|---|
@@ -109,9 +110,9 @@ Todas las consultas usan `v_ejecucion_activa`, por lo que no se mezclan instant�
 | `monto_promedio_fonacot` | `m03_ticket_promedio_nacional_mxn` | Calculado en la vista FONACOT. |
 | SNIIV (no presente en el mock) | `m04_*` de `v_kpis_sniiv_anual_resumen` y `v_kpis_sniiv_entidad_anual` | Incluye filas con `sexo` nulo conservadas. |
 
-### Impacto pendiente en el frontend
+### Impacto resuelto en el frontend
 
-`fetchDashboardData` llama hoy a `/api/dashboard?periodo=8w&sucursal=ALL` cuando `VITE_API_URL` está definido. Con este contrato, `periodo=8w` devuelve `422` y `sucursal` no es un parámetro admitido. La adaptación del frontend (fuera de esta entrega) debe:
+La adaptación descrita quedó implementada en la fase VI:
 
 1. Obtener cortes válidos desde `/api/periodos`.
 2. Enviar `periodo=YYYY-MM` a `/api/dashboard`.

@@ -21,6 +21,7 @@ def test_docs_y_openapi_solo_exponen_health() -> None:
         "/api/health",
         "/api/dashboard",
         "/api/instituciones",
+        "/api/instituciones/catalogo",
         "/api/periodos",
         "/api/fuentes",
         "/api/fonacot",

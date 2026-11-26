@@ -1,817 +1,608 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState } from 'react';
+import DashboardFrame from './components/layout/DashboardFrame';
+import DashboardHeader from './components/layout/DashboardHeader';
+import SourceTrace from './components/layout/SourceTrace';
+import ContextMetric from './components/layout/ContextMetric';
+import EstadoSeccion from './components/layout/EstadoSeccion';
+import BotonReintento from './components/layout/BotonReintento';
+import FilterBar from './components/filters/FilterBar';
+import KpiInfoPanel from './components/filters/KpiInfoPanel';
+import KpiSummaryGrid from './components/kpi/KpiSummaryGrid';
+import TrendLineChart from './components/charts/TrendLineChart';
+import HorizontalBarList from './components/charts/HorizontalBarList';
+import FonacotContextStrip from './components/charts/FonacotContextStrip';
+import SniivContextStrip from './components/charts/SniivContextStrip';
+import InstitutionRankingTable from './components/tables/InstitutionRankingTable';
+import { useDashboardData } from './hooks/useDashboardData';
+import { ApiError, trimestreDePeriodo } from './services/dashboardApi';
+import { COLORS } from './constants/dashboardTheme';
 import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from 'recharts';
-import {
-  AlertTriangle,
-  ArrowUpDown,
-  Building2,
-  Calendar,
-  CheckCircle2,
-  ChevronDown,
-  Database,
-  Eye,
-  Filter,
-  Info,
-  ShieldAlert,
-  TrendingUp,
-  Users,
-} from 'lucide-react';
-import {
-  SUCURSALES,
-  PERIODOS,
-  fetchDashboardData,
-} from './data/mockDashboardData';
+  formatMonth,
+  formatNoDisponible,
+  formatPercent,
+  formatPercentNumber,
+  formatQuarter,
+  formatYear,
+  periodoAnterior,
+  toNumberOrNull,
+} from './utils/formatters';
 
-/**
- * Paleta Semántica Accesible (Sección 6 del Storytelling - Checklist de Validación y UX):
- * - Verde azulado (Teal #0E7C7B): Indicadores saludables, liquidez disponible, préstamos vigentes y negocio/emergencia.
- * - Naranja rojizo (#D95D2E): Compromisos, obligaciones financieras, tasa de morosidad, préstamos vencidos / personales y días de atraso.
- * - Ámbar (#D97706): Métricas en seguimiento (Recuperación de cartera / atrasos medios).
- * Este par cromático evita el conflicto verde-rojo puro para usuarios con daltonismo (deuteranopía o protanopía).
- */
-const COLORS = {
-  teal: '#0E7C7B',
-  tealLight: '#149B98',
-  orangeRed: '#D95D2E',
-  amber: '#D97706',
-  slateText: '#1E293B',
-  slateMuted: '#64748B',
-  gridLine: '#E2E8F0',
+const ETIQUETAS_ERROR = {
+  periodos: 'Catálogo de períodos',
+  catalogoInstituciones: 'Catálogo de cooperativas',
+  instituciones: 'Fichas de cooperativas',
+  fonacot: 'Contexto FONACOT',
+  sniiv: 'Contexto SNIIV',
+  fuentes: 'Trazabilidad de fuentes',
+  health: 'Estado del servicio',
 };
 
-const formatCurrencyFull = (value) => {
-  return '$ ' + Number(value).toLocaleString('en-US', { maximumFractionDigits: 0 });
+const LLAVES_POR_SECCION = {
+  sectorial: ['periodo', 'anio'],
+  institucional: [
+    'periodoInstitucional', 'trimestreInstitucional', 'anioInstitucional', 'claveSeis',
+  ],
+  fonacot: ['trimestreFonacot', 'anioFonacot', 'entidadFonacot', 'generoFonacot'],
+  sniiv: ['anioSniiv', 'entidadSniiv', 'generoSniiv'],
 };
 
-const formatMillionsAxis = (value) => {
-  const millions = value / 1000000;
-  return `$${millions.toFixed(1)} M`;
-};
+const IDS_PRINCIPALES = ['KPI-01', 'KPI-02', 'KPI-03', 'KPI-04'];
+const IDS_SECUNDARIOS = ['KPI-05', 'KPI-06', 'KPI-07', 'KPI-08', 'KPI-09'];
 
-/**
- * Tooltip personalizado para el Gráfico Central (Nivel 2: Evolución Semanal)
- */
-const CustomLineTooltip = ({ active, payload, label }) => {
-  if (!active || !payload || !payload.length) return null;
-
-  const liq = payload.find((p) => p.dataKey === 'liquidez')?.value || 0;
-  const obl = payload.find((p) => p.dataKey === 'obligaciones')?.value || 0;
-  const brecha = liq - obl;
-  const razon = obl > 0 ? ((liq / obl) * 100).toFixed(1) : '100.0';
-  const fechaCorte = payload[0]?.payload?.fecha_corte;
-
+function Aviso({ children, critico = false }) {
   return (
-    <div className="bg-white border border-slate-200 shadow-lg rounded-lg p-3.5 text-xs min-w-[230px]">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-2">
-        <span className="font-bold text-slate-800">Semana {label}</span>
-        {fechaCorte && (
-          <span className="text-[11px] text-slate-400">Corte: {fechaCorte}</span>
-        )}
-      </div>
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-slate-600 font-medium">
-            <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: COLORS.teal }} />
-            Liquidez disponible:
-          </span>
-          <span className="font-bold text-slate-900">{formatCurrencyFull(liq)}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-slate-600 font-medium">
-            <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: COLORS.orangeRed }} />
-            Obligaciones C.P.:
-          </span>
-          <span className="font-bold text-slate-900">{formatCurrencyFull(obl)}</span>
-        </div>
-        <div className="pt-1.5 mt-1.5 border-t border-slate-100 flex items-center justify-between">
-          <span className="text-slate-500">Margen / Razón:</span>
-          <span className="font-semibold text-[#0E7C7B]">
-            +{formatCurrencyFull(brecha)} ({razon}%)
-          </span>
-        </div>
-      </div>
+    <div
+      className={`mb-3 rounded border px-3 py-2 text-[11px] ${
+        critico
+          ? 'border-red-200 bg-red-50 text-[#B4472A]'
+          : 'border-amber-200 bg-amber-50 text-amber-800'
+      }`}
+    >
+      {children}
     </div>
   );
-};
+}
+
+function Panel({ id, children }) {
+  return (
+    <section role="tabpanel" id={`panel-${id}`} aria-labelledby={`tab-${id}`} className="mt-5">
+      {children}
+    </section>
+  );
+}
 
 export default function App() {
-  const [periodoId, setPeriodoId] = useState('8w');
-  const [sucursalId, setSucursalId] = useState('ALL');
-  const [dashboardData, setDashboardData] = useState(null);
-
-  // Estado para la tabla de detalle operativo (Zona 04)
-  // Wireframe mode shows the exact 3 rows of the Figma wireframe by default, with toggle to see all 10 overdue records
-  const [tableViewMode, setTableViewMode] = useState('wireframe'); // 'wireframe' | 'top10'
-  const [sortBy, setSortBy] = useState('wireframe_order'); // 'wireframe_order' | 'dias_desc' | 'monto_desc'
-  const [selectedTipoFilter, setSelectedTipoFilter] = useState(null);
   const [showContextModal, setShowContextModal] = useState(false);
+  const [tabActiva, setTabActiva] = useState('resumen');
+  const [indicadorGrafica, setIndicadorGrafica] = useState('kpi01_imor_pct');
+  const [filtros, setFiltros] = useState({});
+  const [avisoSeleccion, setAvisoSeleccion] = useState(null);
+  const { data, error, loading, cargando, seleccion, recargar, recargarTodo } =
+    useDashboardData(filtros);
 
-  useEffect(() => {
-    fetchDashboardData({ periodoId, sucursalId }).then((data) => {
-      setDashboardData(data);
+  /** Los cortes, años y claves se envían solo al endpoint que los admite. */
+  const cambiarFiltro = (nombre, valor) => {
+    const anterior = filtros;
+    const siguiente = { ...anterior, [nombre]: valor };
+    let aviso = null;
+
+    if (nombre === 'periodo' && valor) {
+      // El contrato exige que `periodo` y `anio` sean coherentes en /api/dashboard.
+      siguiente.anio = Number(String(valor).slice(0, 4));
+    }
+    if (nombre === 'periodoInstitucional' && valor) {
+      // La clave se conserva: el catálogo del selector es completo, aunque el
+      // ranking del corte solo devuelva las fichas mejor calificadas.
+      siguiente.trimestreInstitucional = trimestreDePeriodo(valor);
+      siguiente.anioInstitucional = Number(String(valor).slice(0, 4));
+    }
+    if (nombre === 'trimestreFonacot' && valor) {
+      siguiente.anioFonacot = Number(String(valor).slice(0, 4));
+      if (anterior.entidadFonacot) {
+        aviso = `El desglose cambió con el trimestre ${valor}; se restableció el filtro de entidad FONACOT.`;
+      }
+      siguiente.entidadFonacot = null;
+    }
+    if (nombre === 'anioSniiv') {
+      siguiente.anioSniiv = valor ? Number(valor) : null;
+      if (valor && anterior.entidadSniiv) {
+        aviso = `El desglose cambió con el año ${valor}; se restableció el filtro de entidad SNIIV.`;
+        siguiente.entidadSniiv = null;
+      }
+    }
+
+    setFiltros(siguiente);
+    setAvisoSeleccion(aviso);
+  };
+
+  /** Quitar el override devuelve esa sección a la selección oficial inicial. */
+  const restablecer = (seccion) => {
+    const llaves = LLAVES_POR_SECCION[seccion] ?? [];
+    setFiltros((anterior) => {
+      const siguiente = { ...anterior };
+      llaves.forEach((llave) => delete siguiente[llave]);
+      return siguiente;
     });
-  }, [periodoId, sucursalId]);
+    setAvisoSeleccion(null);
+  };
 
-  const sortedAndFilteredCuotas = useMemo(() => {
-    if (!dashboardData) return [];
-    let list = [...dashboardData.cuotas_vencidas];
-
-    if (selectedTipoFilter) {
-      list = list.filter((item) => item.tipo_prestamo === selectedTipoFilter);
-    }
-
-    if (tableViewMode === 'wireframe' && sucursalId === 'ALL' && !selectedTipoFilter) {
-      list = list.slice(0, 3);
-    }
-
-    if (sortBy === 'dias_desc') {
-      list.sort((a, b) => b.dias_atraso - a.dias_atraso || b.saldo_pendiente - a.saldo_pendiente);
-    } else if (sortBy === 'monto_desc') {
-      list.sort((a, b) => b.saldo_pendiente - a.saldo_pendiente || b.dias_atraso - a.dias_atraso);
-    }
-
-    return list;
-  }, [dashboardData, tableViewMode, sortBy, sucursalId, selectedTipoFilter]);
-
-  if (!dashboardData) {
+  if (error) {
+    const esApi = error instanceof ApiError;
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F3F5F8] text-slate-600 text-sm font-medium">
-        Cargando tablero gerencial...
+      <DashboardFrame>
+        <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-5" role="alert">
+          <h2 className="text-[15px] font-bold text-[#D95D2E]">
+            No fue posible cargar la información oficial
+          </h2>
+          <p className="text-xs text-slate-600 mt-2">{error.message}</p>
+          <p className="text-[11px] text-slate-500 mt-1">
+            El tablero no sustituye la respuesta fallida por datos de demostración.
+          </p>
+          {esApi && (error.status || error.code || error.detail || error.campos?.length > 0) && (
+            <details className="mt-3 text-[11px] text-slate-500">
+              <summary className="cursor-pointer font-semibold">Ver detalle técnico</summary>
+              <dl className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+                {error.code && <div><dt className="inline font-semibold">Código interno:</dt> <dd className="inline">{error.code}</dd></div>}
+                {error.status && <div><dt className="inline font-semibold">Estado HTTP:</dt> <dd className="inline">{error.status}</dd></div>}
+                {error.detail && <div className="sm:col-span-2"><dt className="inline font-semibold">Detalle:</dt> <dd className="inline">{error.detail}</dd></div>}
+                {error.campos?.length > 0 && (
+                  <div className="sm:col-span-2">
+                    <dt className="inline font-semibold">Campos:</dt>{' '}
+                    <dd className="inline">{error.campos.join(', ')}</dd>
+                  </div>
+                )}
+              </dl>
+            </details>
+          )}
+          <div className="mt-4">
+            <BotonReintento onClick={recargarTodo} etiqueta="Reintentar carga" />
+          </div>
+        </div>
+      </DashboardFrame>
+    );
+  }
+
+  if (loading || !data) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F3F5F8] text-slate-600 text-sm font-medium" role="status" aria-live="polite">
+        Cargando tablero gerencial desde la API oficial...
       </div>
     );
   }
 
-  const {
-    resumen,
-    evolucion_semanal,
-    prestamos_por_estado,
-    cartera_vencida_por_tipo,
-    fonacot_comparativa,
-  } = dashboardData;
+  const claveActiva = seleccion?.claveSeis ?? null;
+  const filasInstitucionales = claveActiva
+    ? data.instituciones.filter((fila) => String(fila.clave_seis) === String(claveActiva))
+    : data.instituciones;
+  const fichaIndividual = Boolean(claveActiva) && filasInstitucionales.length === 1;
+  const filaIndividual = fichaIndividual ? filasInstitucionales[0] : null;
 
-  const maxConteoEstado = Math.max(...prestamos_por_estado.map((d) => d.conteo), 1);
-  const maxMontoTipo = Math.max(...cartera_vencida_por_tipo.map((d) => d.monto), 1);
+  const ordenarPor = (campo) =>
+    [...filasInstitucionales]
+      .filter((fila) => toNumberOrNull(fila[campo]) !== null)
+      .sort((a, b) => toNumberOrNull(b[campo]) - toNumberOrNull(a[campo]))
+      .slice(0, 5);
+
+  const topImor = ordenarPor('kpi01_imor_publicado_pct');
+  const topIcor = ordenarPor('kpi02_icor_derivado_pct');
+  const serieAnual = data.serieAnual ?? [];
+  const trimestreTexto = formatQuarter(data.trimestreInstituciones);
+  const institucionesConsultadas = data.totalDevueltosInstituciones ?? data.instituciones.length;
+  const totalCatalogo = data.catalogos?.totalInstitucionesDevueltas
+    ?? data.catalogos?.instituciones?.length
+    ?? institucionesConsultadas;
+  const avisosParciales = Object.entries(data.errores ?? {});
+  const indicadorActivo = (data.indicadores ?? []).find((item) => item.campo === indicadorGrafica)
+    ?? (data.indicadores ?? [])[0];
+
+  /* Lectura del corte y del mes inmediatamente anterior, solo con datos de la API. */
+  const campoGrafica = indicadorActivo?.campo ?? indicadorGrafica;
+  const valorCorteGrafica = toNumberOrNull(data.corte?.[campoGrafica]);
+  const periodoPrevio = periodoAnterior(data.periodo);
+  const filaPrevioGrafica = periodoPrevio
+    ? serieAnual.find((fila) => fila.periodo_ym === periodoPrevio)
+    : null;
+  const valorPrevioGrafica = toNumberOrNull(filaPrevioGrafica?.[campoGrafica]);
+  const variacionGrafica = valorCorteGrafica !== null && valorPrevioGrafica !== null
+    ? valorCorteGrafica - valorPrevioGrafica
+    : null;
+  const textoVariacion = variacionGrafica === null
+    ? formatNoDisponible()
+    : variacionGrafica === 0
+      ? `Sin cambio frente a ${formatMonth(periodoPrevio)} (0.00 puntos porcentuales).`
+      : `${variacionGrafica > 0 ? 'Aumentó' : 'Disminuyó'} ${formatPercentNumber(Math.abs(variacionGrafica), 2)} puntos porcentuales frente a ${formatMonth(periodoPrevio)}.`;
+  const interpretacionVariacion = variacionGrafica === null
+    ? formatNoDisponible()
+    : `${variacionGrafica > 0 ? 'El valor aumentó' : variacionGrafica < 0 ? 'El valor disminuyó' : 'El valor se mantuvo'} respecto al mes anterior. ${indicadorActivo?.lectura ?? indicadorActivo?.interpretacion ?? ''}`.trim();
+
+  const propsFiltros = {
+    seleccion,
+    catalogos: data.catalogos,
+    entidadesFonacot: data.entidadesFonacot,
+    entidadesSniiv: data.entidadesSniiv,
+    onChange: cambiarFiltro,
+    cargando,
+  };
+  const barra = (secciones, seccion) => (
+    <FilterBar {...propsFiltros} secciones={secciones} onRestablecer={() => restablecer(seccion)} />
+  );
 
   return (
-    <div className="min-h-screen bg-[#ECEFF4] py-5 px-4 sm:px-6 lg:px-8 text-slate-800">
-      {/* Contenedor Principal estilo Monitor de Escritorio (Patrón Z / F del Wireframe Figma) */}
-      <div className="max-w-[1240px] mx-auto bg-[#F5F7FA] border border-slate-300/90 rounded-md shadow-sm p-6 sm:p-8">
-        
-        {/* =====================================================================
-            ENCABEZADO SUPERIOR Y FILTROS GLOBALES
-            ===================================================================== */}
-        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-5 border-b border-slate-200">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-[22px] sm:text-2xl font-extrabold tracking-tight text-slate-900">
-                Caja de Ahorro y Préstamo
-              </h1>
-              <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-teal-50 text-[#0E7C7B] border border-teal-200/70">
-                CNBV · CONDUSEF
+    <DashboardFrame>
+      <DashboardHeader
+        tabActiva={tabActiva}
+        onCambiarTab={setTabActiva}
+        onAbrirGuia={() => setShowContextModal(true)}
+        corte={data.periodo}
+      />
+
+      <KpiInfoPanel open={showContextModal} onClose={() => setShowContextModal(false)} />
+
+      {avisoSeleccion && <div className="mt-3"><Aviso>{avisoSeleccion}</Aviso></div>}
+
+      {avisosParciales.length > 0 && (
+        <details className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+          <summary className="cursor-pointer font-semibold">
+            Algunas secciones no pudieron actualizarse · ver detalle
+          </summary>
+          <ul className="list-disc pl-4 mt-2 space-y-0.5">
+            {avisosParciales.map(([clave, mensaje]) => (
+              <li key={clave}>
+                <span className="font-semibold">{ETIQUETAS_ERROR[clave] ?? clave}:</span> {mensaje}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-2">
+            <BotonReintento onClick={recargarTodo} etiqueta="Reintentar consultas" />
+          </div>
+        </details>
+      )}
+
+      {/* 1–3. Situación actual → evolución → rentabilidad y eficiencia */}
+      {tabActiva === 'resumen' && (
+        <Panel id="resumen">
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3 mb-3">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Situación financiera del sector</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Indicadores mensuales del sistema SOCAP.
+              </p>
+            </div>
+            {barra(['sectorial'], 'sectorial')}
+          </div>
+
+          {data.sinDatosCnbv && !cargando.cnbv && (
+            <Aviso>
+              El corte {formatMonth(data.periodo)} no tiene observaciones publicadas. No se imputan
+              valores ausentes.
+            </Aviso>
+          )}
+
+          <EstadoSeccion
+            cargando={cargando.cnbv}
+            error={data.errores?.cnbv}
+            onReintentar={() => recargar('cnbv')}
+            mensajeCarga="Consultando los KPIs del corte solicitado…"
+          >
+            <KpiSummaryGrid
+              corte={data.corte}
+              indicadores={data.indicadores}
+              periodo={data.periodo}
+              fuente={data.fuenteCnbv}
+              bandasPorKpi={data.bandasPorKpi}
+              ids={IDS_PRINCIPALES}
+            />
+          </EstadoSeccion>
+
+          <div className="mt-5">
+            <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+              <h3 className="text-sm font-bold text-slate-900">
+                ¿Cómo evolucionan riesgo, liquidez y capitalización?
+              </h3>
+              <span className="text-[11px] text-slate-400">Serie mensual · unidad: porcentaje</span>
+            </div>
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_230px] gap-4">
+              <TrendLineChart
+                serieAnual={serieAnual}
+                periodo={data.periodo}
+                fuente={data.fuenteCnbv}
+                loading={cargando.cnbv}
+                error={data.errores?.cnbv}
+                onReintentar={() => recargar('cnbv')}
+                campo={indicadorGrafica}
+                onCampoChange={setIndicadorGrafica}
+                bandaNicap={data.bandasPorKpi['KPI-04']}
+              />
+              <aside className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-4">
+                <h4 className="text-xs font-bold text-slate-900">Cómo leer la gráfica</h4>
+                <dl className="mt-2 space-y-2 text-[11px] text-slate-600">
+                  <div>
+                    <dt className="font-semibold text-slate-700">Qué compara:</dt>
+                    <dd>{indicadorActivo?.nombre}. Un indicador por gráfica para apreciar mejor sus variaciones.</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-slate-700">Valor en {formatMonth(data.periodo)}:</dt>
+                    <dd className="font-bold text-slate-900">{formatPercent(valorCorteGrafica)}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-slate-700">Variación vs. mes anterior:</dt>
+                    <dd>{textoVariacion}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-slate-700">Lectura del cambio:</dt>
+                    <dd>{interpretacionVariacion}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-slate-700">Serie:</dt>
+                    <dd>
+                      {formatMonth(serieAnual[0]?.periodo_ym)} a{' '}
+                      {formatMonth(serieAnual.at(-1)?.periodo_ym)}
+                    </dd>
+                  </div>
+                </dl>
+                <details className="mt-3 text-[10px] text-slate-400">
+                  <summary className="cursor-pointer font-semibold">Detalle técnico</summary>
+                  <p className="mt-1">Cálculo oficial: <code>{indicadorActivo?.formula}</code></p>
+                  <p className="mt-0.5">Fuente: {data.fuenteCnbv}</p>
+                </details>
+              </aside>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <h3 className="text-sm font-bold text-slate-900">Rentabilidad y eficiencia financiera</h3>
+            <p className="text-xs text-slate-500 mt-0.5 mb-2">
+              Cinco indicadores complementarios del mismo corte sectorial.
+            </p>
+            <KpiSummaryGrid
+              corte={data.corte}
+              indicadores={data.indicadores}
+              periodo={data.periodo}
+              fuente={data.fuenteCnbv}
+              bandasPorKpi={data.bandasPorKpi}
+              ids={IDS_SECUNDARIOS}
+              compacta
+            />
+            <details className="mt-3 text-[11px] text-slate-500">
+              <summary className="cursor-pointer font-semibold text-slate-600">
+                Participación femenina en el sector
+              </summary>
+              <p className="mt-1">
+                Socios reportados por género en {formatMonth(data.periodo)}:{' '}
+                <strong className="text-slate-800">
+                  {formatPercent(data.corte?.m01_participacion_femenina_socios_pct)}
+                </strong>
+              </p>
+              <p className="mt-0.5 text-[10px] text-slate-400">
+                El denominador es la suma de socios reportados por género, no el total publicado.
+                Fuente: {data.fuenteCnbv}
+              </p>
+            </details>
+          </div>
+
+          {data.notaCnbv && (
+            <details className="mt-4 text-[10px] text-slate-400">
+              <summary className="cursor-pointer font-semibold">Nota metodológica oficial</summary>
+              <p className="mt-1">{data.notaCnbv}</p>
+            </details>
+          )}
+        </Panel>
+      )}
+
+      {/* 4. Comparativa de cooperativas */}
+      {tabActiva === 'comparativa' && (
+        <Panel id="comparativa">
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3 mb-3">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Comparativa entre cooperativas</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Fichas trimestrales de la CNBV · {trimestreTexto}. Selecciona una cooperativa para ver
+                su ficha individual.
+              </p>
+            </div>
+            {barra(['institucional'], 'institucional')}
+          </div>
+
+          {fichaIndividual && (
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-teal-50 text-[#0E7C7B]">
+                Ficha individual
+              </span>
+              <span className="text-[11px] text-slate-500">
+                {filaIndividual?.institucion_nombre} · clave {claveActiva} ·{' '}
+                {formatMonth(data.corteInstituciones)}
               </span>
             </div>
-            <p className="text-xs sm:text-[13px] text-slate-500 mt-0.5 font-medium">
-              Panel de liquidez, cartera y recuperación · Vista gerencial
+          )}
+
+          <EstadoSeccion
+            cargando={cargando.instituciones}
+            error={data.errores?.instituciones}
+            onReintentar={() => recargar('instituciones')}
+            mensajeCarga="Consultando fichas institucionales del corte seleccionado…"
+          >
+            {fichaIndividual ? (
+              <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-4 sm:p-5">
+                <h3 className="text-sm font-bold text-slate-900">
+                  Indicadores de la cooperativa consultada
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Corte {formatMonth(data.corteInstituciones)} · {trimestreTexto}
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mt-3">
+                  <ContextMetric etiqueta="Activos" valor={`$ ${toNumberOrNull(filaIndividual?.activo_mxn)?.toLocaleString('en-US') ?? formatNoDisponible()}`} />
+                  <ContextMetric etiqueta="Socios" valor={toNumberOrNull(filaIndividual?.socios)?.toLocaleString('en-US') ?? formatNoDisponible()} />
+                  <ContextMetric etiqueta="IMOR publicado" valor={formatPercent(filaIndividual?.kpi01_imor_publicado_pct)} />
+                  <ContextMetric etiqueta="ICOR derivado" valor={formatPercent(filaIndividual?.kpi02_icor_derivado_pct)} />
+                  <ContextMetric etiqueta="NICAP publicado" valor={formatPercent(filaIndividual?.kpi04_nicap_publicado_pct)} />
+                  <ContextMetric etiqueta="Participación por activo" valor={formatPercent(filaIndividual?.m02_participacion_activo_publicada_pct)} />
+                </div>
+              </div>
+            ) : topImor.length === 0 ? (
+              <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-5 text-xs text-slate-500">
+                No hay fichas publicadas para el corte {trimestreTexto}. No se imputan valores ausentes.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-4 sm:p-5">
+                  <HorizontalBarList
+                    title="Morosidad (IMOR) por cooperativa"
+                    items={topImor}
+                    labelKey="institucion_nombre"
+                    valueKey="kpi01_imor_publicado_pct"
+                    color={COLORS.orangeRed}
+                    formatValue={formatPercent}
+                    descripcion={`Compara el IMOR publicado en ${trimestreTexto}. Barras más largas indican mayor morosidad.`}
+                  />
+                </div>
+                <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-4 sm:p-5">
+                  <HorizontalBarList
+                    title="Cobertura (ICOR) por cooperativa"
+                    items={topIcor}
+                    labelKey="institucion_nombre"
+                    valueKey="kpi02_icor_derivado_pct"
+                    color={COLORS.teal}
+                    formatValue={formatPercent}
+                    descripcion={`Compara la cobertura derivada en ${trimestreTexto}. Barras más largas indican mayor cobertura contable, no recuperación efectiva.`}
+                  />
+                </div>
+              </div>
+            )}
+          </EstadoSeccion>
+
+          <details className="mt-3 text-[10px] text-slate-400">
+            <summary className="cursor-pointer font-semibold">Alcance y fuente de la comparativa</summary>
+            <p className="mt-1">
+              Liquidez por cooperativa: {formatNoDisponible()} — los boletines no publican los
+              componentes de corto plazo necesarios para el indicador sectorial.
+            </p>
+            <p className="mt-0.5">
+              Fuente: {data.fuenteInstituciones}
+              {claveActiva ? ` · clave consultada ${claveActiva}` : ''}
+            </p>
+          </details>
+
+          <div className="mt-4">
+            <InstitutionRankingTable
+              instituciones={filasInstitucionales}
+              trimestre={data.trimestreInstituciones}
+              limitado={data.limitadoInstituciones}
+              totalDevueltos={institucionesConsultadas}
+              totalCatalogo={totalCatalogo}
+              nota={data.notaInstituciones}
+              fuente={data.fuenteInstituciones}
+              error={data.errores?.instituciones}
+              cargando={cargando.instituciones}
+              onReintentar={() => recargar('instituciones')}
+              fichaIndividual={fichaIndividual}
+              claveSeis={claveActiva}
+            />
+          </div>
+        </Panel>
+      )}
+
+      {/* 5. Contextos externos independientes */}
+      {tabActiva === 'contexto' && (
+        <Panel id="contexto">
+          <div className="mb-4">
+            <h2 className="text-lg font-bold text-slate-900">Contexto financiero externo</h2>
+            <p className="text-xs text-slate-500 mt-0.5 max-w-3xl">
+              FONACOT y SNIIV describen universos independientes de las cooperativas SOCAP: sus cifras
+              no se suman a los indicadores del sector ni se atribuyen a una cooperativa.
             </p>
           </div>
 
-          {/* Dos filtros globales únicos (Interactividad Proporcional - Sección 6) */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Filtro 1: Período */}
-            <div className="relative">
-              <label htmlFor="select-periodo" className="sr-only">Período</label>
-              <select
-                id="select-periodo"
-                value={periodoId}
-                onChange={(e) => setPeriodoId(e.target.value)}
-                className="appearance-none bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-semibold rounded-md pl-3.5 pr-8 py-2 shadow-2xs focus:outline-none focus:ring-2 focus:ring-[#0E7C7B]/20 focus:border-[#0E7C7B] cursor-pointer transition"
-              >
-                {PERIODOS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-
-            {/* Filtro 2: Sucursal */}
-            <div className="relative">
-              <label htmlFor="select-sucursal" className="sr-only">Sucursal</label>
-              <select
-                id="select-sucursal"
-                value={sucursalId}
-                onChange={(e) => {
-                  setSucursalId(e.target.value);
-                  if (e.target.value !== 'ALL') {
-                    setTableViewMode('top10');
-                  } else {
-                    setTableViewMode('wireframe');
-                  }
-                }}
-                className="appearance-none bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-semibold rounded-md pl-3.5 pr-8 py-2 shadow-2xs focus:outline-none focus:ring-2 focus:ring-[#0E7C7B]/20 focus:border-[#0E7C7B] cursor-pointer transition"
-              >
-                {SUCURSALES.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.nombre}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-
-            {/* Botón discreto para ver detalles de fórmulas SQL y 8 KPIs */}
-            <button
-              type="button"
-              onClick={() => setShowContextModal(!showContextModal)}
-              title="Ver ficha técnica de los 8 KPIs y modelo PostgreSQL"
-              className={`inline-flex items-center gap-1.5 px-2.5 py-2 rounded-md text-xs font-semibold border transition ${
-                showContextModal
-                  ? 'bg-slate-800 text-white border-slate-800'
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-              }`}
+          <div className="space-y-4">
+            <section
+              aria-labelledby="heading-fonacot"
+              className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-4 sm:p-5"
             >
-              <Info className="w-3.5 h-3.5" />
-              <span className="hidden lg:inline">Ficha de KPIs (8)</span>
-            </button>
-          </div>
-        </header>
-
-        {/* Panel desplegable opcional con la matriz técnica de los 8 KPIs para la exposición con el profesor */}
-        {showContextModal && (
-          <div className="mt-4 bg-white border border-slate-200 rounded-md p-4 shadow-xs text-xs text-slate-700">
-            <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Database className="w-4 h-4 text-[#0E7C7B]" />
-                <span className="font-bold text-slate-900">
-                  Mapeo de los 8 Indicadores (Sección 5.5.2 Visualización Efectiva + Storytelling)
-                </span>
-              </div>
-              <button
-                onClick={() => setShowContextModal(false)}
-                className="text-slate-400 hover:text-slate-600 font-semibold"
-              >
-                Cerrar ✕
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="p-2.5 rounded bg-slate-50 border border-slate-100">
-                <span className="font-bold text-[#0E7C7B]">KPI 1 · Liquidez vs. Obligaciones:</span>
-                <p className="text-[11px] text-slate-600 mt-0.5">
-                  <code>ahorro_total - capital_cartera_activa</code> frente a obligaciones a 30 días. Razón actual: <strong>{resumen.razon_liquidez_pct}%</strong>.
-                </p>
-              </div>
-              <div className="p-2.5 rounded bg-slate-50 border border-slate-100">
-                <span className="font-bold text-[#0E7C7B]">KPI 2 · Índice Colocación vs. Ahorro:</span>
-                <p className="text-[11px] text-slate-600 mt-0.5">
-                  <code>SUM(Prestamo.monto_autorizado) / SUM(Cuenta_Ahorro.saldo)</code>. Límite de alerta: <strong>80%</strong>.
-                </p>
-              </div>
-              <div className="p-2.5 rounded bg-slate-50 border border-slate-100">
-                <span className="font-bold text-[#D95D2E]">KPI 3 · Tasa de Morosidad (%):</span>
-                <p className="text-[11px] text-slate-600 mt-0.5">
-                  Proporción de cartera vencida (<code>Prestamo.estado = 'Vencido'</code>) sobre cartera activa total.
-                </p>
-              </div>
-              <div className="p-2.5 rounded bg-slate-50 border border-slate-100">
-                <span className="font-bold text-[#D97706]">KPI 4 · Recuperación de Cartera (%):</span>
-                <p className="text-[11px] text-slate-600 mt-0.5">
-                  <code>SUM(Cuota_Prestamo.monto_pagado) / SUM(Cuota_Prestamo.monto_esperado)</code> en cuotas vencidas.
-                </p>
-              </div>
-              <div className="p-2.5 rounded bg-slate-50 border border-slate-100">
-                <span className="font-bold text-slate-800">KPI 5 · Evolución Semanal (S1-S8):</span>
-                <p className="text-[11px] text-slate-600 mt-0.5">
-                  Doble serie temporal desde tabla de hechos <code>Posicion_Semanal</code> con corte dominical.
-                </p>
-              </div>
-              <div className="p-2.5 rounded bg-slate-50 border border-slate-100">
-                <span className="font-bold text-slate-800">KPI 6 · Préstamos por Estado y Tipo:</span>
-                <p className="text-[11px] text-slate-600 mt-0.5">
-                  Causa raíz de morosidad por estado (Vigentes, Vencidos, Liquidados) y modalidad (Personal, Negocio, Emergencia).
-                </p>
-              </div>
-              <div className="p-2.5 rounded bg-slate-50 border border-slate-100">
-                <span className="font-bold text-slate-800">KPI 7 · Priorización de Cobranza:</span>
-                <p className="text-[11px] text-slate-600 mt-0.5">
-                  Ranking operativo de socios por antigüedad de atraso (días) y saldo pendiente en <code>Cuota_Prestamo</code>.
-                </p>
-              </div>
-              <div className="p-2.5 rounded bg-teal-50/50 border border-teal-200/60">
-                <span className="font-bold text-[#0E7C7B]">KPI 8 · Referencia Externa FONACOT:</span>
-                <p className="text-[11px] text-slate-600 mt-0.5">
-                  Cruce de <code>Socio.genero = 'M'</code> vs. <code>Ref_Credito_Fonacot</code> por <code>Entidad_Federativa</code>.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* =====================================================================
-            ZONA SUPERIOR — 01 / RESUMEN EJECUTIVO (EL GANCHO Y EL CONFLICTO)
-            ===================================================================== */}
-        <section className="mt-5" aria-labelledby="heading-resumen">
-          <div className="flex items-center justify-between mb-2.5">
-            <h2
-              id="heading-resumen"
-              className="text-[11px] font-bold uppercase tracking-wider text-slate-500"
-            >
-              01 / RESUMEN EJECUTIVO
-            </h2>
-            <span className="text-[11px] text-slate-400 hidden sm:inline">
-              Corte dominical: 22/11/2026 · Razón de liquidez: <strong className="text-slate-600">{resumen.razon_liquidez_pct}%</strong>
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Tarjeta KPI 1: Liquidez disponible */}
-            <article className="bg-white rounded-md border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between">
-              <div className="h-[4px] w-full" style={{ backgroundColor: COLORS.teal }} />
-              <div className="p-4 sm:p-5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-500">
-                    Liquidez disponible
-                  </span>
-                  <span
-                    title={`Obligaciones a corto plazo: ${formatCurrencyFull(resumen.obligaciones_corto_plazo)}`}
-                    className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-teal-50 text-[#0E7C7B]"
-                  >
-                    Razón {resumen.razon_liquidez_pct}%
-                  </span>
-                </div>
-                <div className="mt-2 text-2xl sm:text-[28px] font-extrabold text-slate-900 tracking-tight leading-none">
-                  {formatCurrencyFull(resumen.liquidez_disponible)}
-                </div>
-                <div className="mt-3 flex items-center justify-between text-[11px]">
-                  <span className="font-semibold text-[#0E7C7B]">
-                    + {resumen.variacion_liquidez_pct}% vs. semana anterior
-                  </span>
-                </div>
-              </div>
-            </article>
-
-            {/* Tarjeta KPI 2: Colocación vs. ahorro */}
-            <article className="bg-white rounded-md border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between">
-              <div className="h-[4px] w-full" style={{ backgroundColor: COLORS.teal }} />
-              <div className="p-4 sm:p-5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-500">
-                    Colocación vs. ahorro
-                  </span>
-                  <span className="text-[10px] font-medium text-slate-400">
-                    Ahorro: ${(resumen.ahorro_total / 1000000).toFixed(2)}M
-                  </span>
-                </div>
-                <div className="mt-2 text-2xl sm:text-[28px] font-extrabold text-slate-900 tracking-tight leading-none">
-                  {resumen.colocacion_vs_ahorro_pct}%
-                </div>
-                <div className="mt-3 text-[11px] font-medium text-slate-500">
-                  Meta de referencia: {resumen.meta_colocacion_pct}%
-                </div>
-              </div>
-            </article>
-
-            {/* Tarjeta KPI 3: Tasa de morosidad */}
-            <article className="bg-white rounded-md border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between">
-              <div className="h-[4px] w-full" style={{ backgroundColor: COLORS.orangeRed }} />
-              <div className="p-4 sm:p-5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-500">
-                    Tasa de morosidad
-                  </span>
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-orange-50 text-[#D95D2E]">
-                    Mora: {formatCurrencyFull(resumen.capital_cartera_vencida)}
-                  </span>
-                </div>
-                <div className="mt-2 text-2xl sm:text-[28px] font-extrabold text-slate-900 tracking-tight leading-none">
-                  {resumen.tasa_morosidad_pct}%
-                </div>
-                <div className="mt-3 text-[11px] font-semibold text-[#D95D2E]">
-                  Alerta: revisar préstamos vencidos
-                </div>
-              </div>
-            </article>
-
-            {/* Tarjeta KPI 4: Recuperación de cartera */}
-            <article className="bg-white rounded-md border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between">
-              <div className="h-[4px] w-full" style={{ backgroundColor: COLORS.amber }} />
-              <div className="p-4 sm:p-5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-500">
-                    Recuperación de cartera
-                  </span>
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700">
-                    Seguimiento
-                  </span>
-                </div>
-                <div className="mt-2 text-2xl sm:text-[28px] font-extrabold text-slate-900 tracking-tight leading-none">
-                  {resumen.recuperacion_cartera_pct}%
-                </div>
-                <div className="mt-3 text-[11px] font-semibold text-[#0E7C7B]">
-                  + {resumen.variacion_recuperacion_pp} pp vs. mes anterior
-                </div>
-              </div>
-            </article>
-          </div>
-        </section>
-
-        {/* =====================================================================
-            ZONA CENTRAL — 02 / TENDENCIAS Y COMPARATIVA (KPI 5)
-            ===================================================================== */}
-        <section className="mt-6" aria-labelledby="heading-tendencias">
-          <h2
-            id="heading-tendencias"
-            className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2.5"
-          >
-            02 / TENDENCIAS Y COMPARATIVA
-          </h2>
-
-          <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-5">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-              <div>
-                <h3 className="text-[15px] font-bold text-slate-900">
-                  Evolución semanal de liquidez frente a obligaciones
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Comparación de montos disponibles y compromisos por cubrir
-                </p>
-              </div>
-
-              {/* Leyenda limpia idéntica al wireframe */}
-              <div className="flex items-center gap-5 text-xs font-medium text-slate-600">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-3 h-2 rounded-xs inline-block"
-                    style={{ backgroundColor: COLORS.teal }}
-                  />
-                  <span>Liquidez</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-3 h-2 rounded-xs inline-block"
-                    style={{ backgroundColor: COLORS.orangeRed }}
-                  />
-                  <span>Obligaciones</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Gráfico de líneas: solo líneas guía horizontales tenues, sin verticales (Sección 6 UX) */}
-            <div className="h-[220px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={evolucion_semanal}
-                  margin={{ top: 10, right: 24, left: 4, bottom: 4 }}
-                >
-                  <CartesianGrid
-                    horizontal={true}
-                    vertical={false}
-                    stroke="#E2E8F0"
-                    strokeDasharray="0"
-                  />
-                  <XAxis
-                    dataKey="semana"
-                    axisLine={{ stroke: '#E2E8F0' }}
-                    tickLine={false}
-                    tick={{ fill: '#64748B', fontSize: 11, fontWeight: 500 }}
-                    dy={8}
-                  />
-                  <YAxis
-                    domain={
-                      sucursalId === 'ALL'
-                        ? [800000, 1400000]
-                        : ['auto', 'auto']
-                    }
-                    ticks={
-                      sucursalId === 'ALL'
-                        ? [800000, 1000000, 1200000, 1400000]
-                        : undefined
-                    }
-                    tickFormatter={formatMillionsAxis}
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#64748B', fontSize: 11, fontWeight: 500 }}
-                    width={52}
-                  />
-                  <Tooltip content={<CustomLineTooltip />} />
-                  <Line
-                    type="linear"
-                    dataKey="liquidez"
-                    name="Liquidez"
-                    stroke={COLORS.teal}
-                    strokeWidth={2.5}
-                    dot={{ r: 3, fill: COLORS.teal, strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: COLORS.teal, stroke: '#fff', strokeWidth: 2 }}
-                  />
-                  <Line
-                    type="linear"
-                    dataKey="obligaciones"
-                    name="Obligaciones"
-                    stroke={COLORS.orangeRed}
-                    strokeWidth={2.5}
-                    dot={{ r: 3, fill: COLORS.orangeRed, strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: COLORS.orangeRed, stroke: '#fff', strokeWidth: 2 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </section>
-
-        {/* =====================================================================
-            ZONA INFERIOR — NIVEL 3 (03 / CAUSA RAÍZ) Y NIVEL 4 (04 / DETALLE OPERATIVO)
-            ===================================================================== */}
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-5">
-          
-          {/* ZONA INFERIOR IZQUIERDA: 03 / CAUSA RAÍZ (7 columnas en escritorio) */}
-          <section className="lg:col-span-7 flex flex-col" aria-labelledby="heading-causa-raiz">
-            <h2
-              id="heading-causa-raiz"
-              className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2.5"
-            >
-              03 / CAUSA RAÍZ
-            </h2>
-
-            <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-5 flex-1 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-[15px] font-bold text-slate-900">
-                    ¿Dónde se concentra la cartera vencida?
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h3 id="heading-fonacot" className="text-sm font-bold text-slate-900">
+                    FONACOT · crédito al trabajo
                   </h3>
-                  {selectedTipoFilter && (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedTipoFilter(null)}
-                      className="text-[11px] font-semibold text-[#D95D2E] hover:underline"
-                    >
-                      Quitar filtro ({selectedTipoFilter}) ✕
-                    </button>
-                  )}
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Universo externo de crédito; se consulta por separado del sector SOCAP.
+                  </p>
                 </div>
-
-                {/* Dos gráficos de barras horizontales lado a lado como en el Wireframe */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-1">
-                  
-                  {/* Sub-gráfico 6A: Préstamos por estado */}
-                  <div>
-                    <h4 className="text-xs font-medium text-slate-500 mb-3.5">
-                      Préstamos por estado
-                    </h4>
-                    <div className="space-y-4">
-                      {prestamos_por_estado.map((item) => {
-                        const widthPct = Math.round((item.conteo / maxConteoEstado) * 100);
-                        return (
-                          <div key={item.estado} className="group">
-                            <div className="flex items-center gap-3">
-                              <span className="w-20 text-xs font-medium text-slate-600 shrink-0">
-                                {item.estado}
-                              </span>
-                              <div className="flex-1 flex items-center gap-2.5">
-                                <div
-                                  className="h-3.5 rounded-sm transition-all duration-300"
-                                  style={{
-                                    width: `${Math.max(widthPct, 12)}%`,
-                                    backgroundColor: item.color,
-                                  }}
-                                  title={`${item.estado}: ${item.conteo} préstamos (${formatCurrencyFull(item.capital)})`}
-                                />
-                                <span
-                                  className={`text-xs font-bold ${
-                                    item.tipo_alerta === 'riesgo'
-                                      ? 'text-[#D95D2E]'
-                                      : 'text-slate-700'
-                                  }`}
-                                >
-                                  {item.conteo}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Sub-gráfico 6B: Cartera vencida por tipo */}
-                  <div>
-                    <div className="flex items-center justify-between mb-3.5">
-                      <h4 className="text-xs font-medium text-slate-500">
-                        Cartera vencida por tipo
-                      </h4>
-                      <span className="text-[10px] text-slate-400">
-                        Clic para filtrar tabla
-                      </span>
-                    </div>
-                    <div className="space-y-4">
-                      {cartera_vencida_por_tipo.map((item) => {
-                        const widthPct = Math.round((item.monto / maxMontoTipo) * 100);
-                        const isSelected = selectedTipoFilter === item.tipo;
-                        return (
-                          <button
-                            key={item.tipo}
-                            type="button"
-                            onClick={() =>
-                              setSelectedTipoFilter(isSelected ? null : item.tipo)
-                            }
-                            className={`w-full text-left group rounded px-1 -mx-1 py-0.5 transition ${
-                              isSelected ? 'bg-orange-50/70 ring-1 ring-[#D95D2E]/30' : 'hover:bg-slate-50'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <span className="w-20 text-xs font-medium text-slate-600 shrink-0">
-                                {item.tipo}
-                              </span>
-                              <div className="flex-1 flex items-center gap-2">
-                                <div
-                                  className="h-3.5 rounded-sm transition-all duration-300"
-                                  style={{
-                                    width: `${Math.max(widthPct, 16)}%`,
-                                    backgroundColor: item.color,
-                                  }}
-                                />
-                                <span
-                                  className={`text-[11px] font-bold whitespace-nowrap ${
-                                    item.tipo_alerta === 'riesgo'
-                                      ? 'text-[#D95D2E]'
-                                      : 'text-slate-700'
-                                  }`}
-                                >
-                                  ${(item.monto / 1000).toFixed(1)}k
-                                </span>
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bloque integrado del 8° Indicador (Datos Abiertos FONACOT - Página 2, 8 y 15 del PDF) */}
-              <div className="mt-6 pt-4 border-t border-slate-100">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-slate-50/90 border border-slate-200/70 rounded-md px-3.5 py-2.5">
-                  <div className="flex items-start sm:items-center gap-2.5">
-                    <Users className="w-4 h-4 text-[#0E7C7B] shrink-0 mt-0.5 sm:mt-0" />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold text-slate-800">
-                          Contexto Externo FONACOT (Equidad y Participación Femenina)
-                        </span>
-                        <span className="text-[10px] font-semibold px-1.5 py-0.2 bg-teal-50 text-[#0E7C7B] rounded border border-teal-200/60">
-                          +{fonacot_comparativa.brecha_pp} pp vs. mercado
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        Socias en la Caja: <strong className="text-[#0E7C7B]">{fonacot_comparativa.pct_socias_caja}%</strong> ({fonacot_comparativa.total_socias_activas} socias) vs. Mujeres con crédito FONACOT: <strong className="text-slate-700">{fonacot_comparativa.pct_mujeres_fonacot}%</strong> ({fonacot_comparativa.trimestre_fuente})
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* ZONA INFERIOR DERECHA: 04 / DETALLE OPERATIVO (5 columnas en escritorio) */}
-          <section className="lg:col-span-5 flex flex-col" aria-labelledby="heading-detalle">
-            <h2
-              id="heading-detalle"
-              className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2.5"
-            >
-              04 / DETALLE OPERATIVO
-            </h2>
-
-            <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-5 flex-1 flex flex-col justify-between">
-              <div>
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div>
-                    <h3 className="text-[15px] font-bold text-slate-900">
-                      Préstamos con cuotas vencidas
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Orden sugerido: mayor atraso y saldo pendiente
-                    </p>
-                  </div>
-
-                  {/* Controles ligeros para alternar entre las 3 filas del wireframe o los Top 10 socios */}
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (sortBy === 'wireframe_order') {
-                          setSortBy('dias_desc');
-                          setTableViewMode('top10');
-                        } else if (sortBy === 'dias_desc') {
-                          setSortBy('monto_desc');
-                        } else {
-                          setSortBy('wireframe_order');
-                          setTableViewMode('wireframe');
-                        }
-                      }}
-                      title="Cambiar criterio de ordenamiento (Vista Wireframe / Mayor Atraso / Mayor Saldo)"
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold bg-slate-100 hover:bg-slate-200/80 text-slate-700 transition"
-                    >
-                      <ArrowUpDown className="w-3 h-3 text-slate-500" />
-                      <span>
-                        {sortBy === 'wireframe_order'
-                          ? 'Wireframe'
-                          : sortBy === 'dias_desc'
-                          ? 'Por Días'
-                          : 'Por Monto'}
-                      </span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Tabla de préstamos con cuotas vencidas */}
-                <div className="overflow-x-auto max-h-[245px] overflow-y-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead className="sticky top-0 bg-slate-100/95 backdrop-blur-xs text-[11px] font-bold text-slate-600 border-b border-slate-200">
-                      <tr>
-                        <th className="py-2 px-2.5 rounded-tl">Socio</th>
-                        <th className="py-2 px-2.5">Vencimiento</th>
-                        <th className="py-2 px-2.5 text-right">Pendiente</th>
-                        <th className="py-2 px-2.5 text-right rounded-tr">Días</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-xs">
-                      {sortedAndFilteredCuotas.map((row) => (
-                        <tr
-                          key={row.id_cuota}
-                          className="hover:bg-slate-50/90 transition-colors group"
-                          title={`${row.nombre_socio} · Préstamo ${row.tipo_prestamo} (Cuota ${row.num_cuota}) · Tel: ${row.telefono}`}
-                        >
-                          <td className="py-2.5 px-2.5 font-medium text-slate-800">
-                            <div>{row.codigo_socio}</div>
-                            {tableViewMode === 'top10' && (
-                              <div className="text-[10px] text-slate-400 truncate max-w-[125px]">
-                                {row.nombre_socio} · {row.tipo_prestamo}
-                              </div>
-                            )}
-                          </td>
-                          <td className="py-2.5 px-2.5 text-slate-600 font-medium">
-                            {row.fecha_vencimiento}
-                          </td>
-                          <td className="py-2.5 px-2.5 text-right font-bold text-slate-800">
-                            {formatCurrencyFull(row.saldo_pendiente)}
-                          </td>
-                          <td className="py-2.5 px-2.5 text-right font-extrabold text-[#D95D2E]">
-                            {row.dias_atraso}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Pie de la tabla con acción rápida para ver los 10 socios de cobranza prioritaria */}
-              <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                <span className="text-slate-500">
-                  Mostrando <strong>{sortedAndFilteredCuotas.length}</strong> de{' '}
-                  <strong>{dashboardData.cuotas_vencidas.length}</strong> casos prioritarios
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-teal-50 text-[#0E7C7B] whitespace-nowrap">
+                  {formatQuarter(data.trimestreFonacot)}
                 </span>
-                {sucursalId === 'ALL' && !selectedTipoFilter && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const nextMode = tableViewMode === 'wireframe' ? 'top10' : 'wireframe';
-                      setTableViewMode(nextMode);
-                      if (nextMode === 'wireframe') {
-                        setSortBy('wireframe_order');
-                      }
-                    }}
-                    className="font-semibold text-[#0E7C7B] hover:underline"
-                  >
-                    {tableViewMode === 'wireframe'
-                      ? 'Ver Top 10 socios en mora →'
-                      : '← Volver a vista Wireframe (3)'}
-                  </button>
-                )}
               </div>
-            </div>
-          </section>
-        </div>
 
-        {/* =====================================================================
-            PIE DE PÁGINA ACADÉMICO (IDÉNTICO AL WIREFRAME DE FIGMA)
-            ===================================================================== */}
-        <footer className="mt-5 pt-3 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[11px] text-slate-400 font-medium">
+              <div className="mt-3">{barra(['fonacot'], 'fonacot')}</div>
+              <div className="mt-3">
+                <FonacotContextStrip
+                  datos={data.fonacot}
+                  trimestre={data.trimestreFonacot}
+                  fuente={data.fuenteFonacot}
+                  error={data.errores?.fonacot}
+                  sinDatos={data.sinDatosFonacot}
+                  desglose={data.desgloseFonacot}
+                  entidad={seleccion?.entidadFonacot}
+                  genero={seleccion?.generoFonacot}
+                  loading={cargando.fonacot}
+                  onReintentar={() => recargar('fonacot')}
+                />
+              </div>
+            </section>
+
+            <section
+              aria-labelledby="heading-sniiv"
+              className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-4 sm:p-5"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h3 id="heading-sniiv" className="text-sm font-bold text-slate-900">
+                    SNIIV · financiamiento de vivienda
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Universo externo de vivienda; corte anual, sin mezclarlo con las cooperativas.
+                  </p>
+                </div>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-teal-50 text-[#0E7C7B] whitespace-nowrap">
+                  Anual {formatYear(data.anioSniiv)}
+                </span>
+              </div>
+
+              <div className="mt-3">{barra(['sniiv'], 'sniiv')}</div>
+              <div className="mt-3">
+                <SniivContextStrip
+                  datos={data.sniiv}
+                  anio={data.anioSniiv}
+                  fuente={data.fuenteSniiv}
+                  error={data.errores?.sniiv}
+                  sinDatos={data.sinDatosSniiv}
+                  desglose={data.desgloseSniiv}
+                  entidad={seleccion?.entidadSniiv}
+                  genero={seleccion?.generoSniiv}
+                  loading={cargando.sniiv}
+                  onReintentar={() => recargar('sniiv')}
+                />
+              </div>
+            </section>
+          </div>
+        </Panel>
+      )}
+
+      <footer className="mt-6 pt-3 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[11px] text-slate-400">
+        <div className="space-y-0.5">
           <div>
-            WIREFRAME ACADÉMICO · Datos y valores ilustrativos, no registros reales · Versión 12/11/2026
+            Cortes: sectorial {formatMonth(data.periodo)} · cooperativas {trimestreTexto} ·
+            FONACOT {formatQuarter(data.trimestreFonacot)} · SNIIV {formatYear(data.anioSniiv)}
           </div>
           <div>
-            Equipo &ldquo;Los Menchos Victoria&rdquo; · PostgreSQL 15 + FastAPI + React &amp; Recharts
+            <SourceTrace
+              fuentes={data.fuentes}
+              error={data.errores?.fuentes}
+              estadoApi={data.estadoApi}
+              contratoVersion={data.contratoVersion}
+            />
           </div>
-        </footer>
-      </div>
-    </div>
+        </div>
+        <div>Equipo &ldquo;Los Menchos Victoria&rdquo;</div>
+      </footer>
+    </DashboardFrame>
   );
 }
