@@ -13,6 +13,7 @@ export default function InstitutionRankingTable({
   totalDevueltos,
   nota,
   fuente,
+  error,
 }) {
   const filas = [...instituciones].sort(
     (a, b) => (toNumberOrNull(b.activo_mxn) ?? -Infinity) - (toNumberOrNull(a.activo_mxn) ?? -Infinity),
@@ -35,6 +36,19 @@ export default function InstitutionRankingTable({
           </span>
         </div>
 
+        {error && (
+          <div className="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-[#B4472A]">
+            No fue posible consultar las fichas institucionales: {error}
+          </div>
+        )}
+
+        {!error && filas.length === 0 && (
+          <div className="text-xs text-slate-500">
+            HTTP 200 sin datos: no hay fichas institucionales publicadas para el corte solicitado.
+          </div>
+        )}
+
+        {filas.length > 0 && (
         <div className="overflow-x-auto max-h-[245px] overflow-y-auto">
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 bg-slate-100/95 backdrop-blur-xs text-[11px] font-bold text-slate-600 border-b border-slate-200">
@@ -80,6 +94,7 @@ export default function InstitutionRankingTable({
             </tbody>
           </table>
         </div>
+        )}
       </div>
 
       <div className="mt-3 pt-2.5 border-t border-slate-100 text-[11px] text-slate-500 space-y-1">

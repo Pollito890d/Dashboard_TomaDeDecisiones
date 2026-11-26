@@ -8,7 +8,7 @@ import {
 } from '../../utils/formatters';
 
 /** Contexto externo M-04: SNIIV, con granularidad anual y universo propio. */
-export default function SniivContextStrip({ datos, anio, fuente }) {
+export default function SniivContextStrip({ datos, anio, fuente, error, sinDatos }) {
   return (
     <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-5 flex flex-col">
       <div className="flex items-center justify-between gap-2 mb-1">
@@ -26,8 +26,14 @@ export default function SniivContextStrip({ datos, anio, fuente }) {
         Financiamientos de vivienda · corte anual, no mezclado con las SOCAP
       </p>
 
-      {!datos ? (
-        <div className="text-xs text-slate-500">Sin información oficial disponible para el año solicitado.</div>
+      {error ? (
+        <div className="text-xs text-[#D95D2E]">No fue posible consultar este contexto: {error}</div>
+      ) : !datos ? (
+        <div className="text-xs text-slate-500">
+          {sinDatos
+            ? 'HTTP 200 sin datos: SNIIV no publica información para el año solicitado.'
+            : 'Sin información oficial disponible para el año solicitado.'}
+        </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <ContextMetric etiqueta="Acciones de financiamiento" valor={formatInteger(datos.m04_acciones_totales)} />

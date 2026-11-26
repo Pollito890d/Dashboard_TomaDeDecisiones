@@ -2,6 +2,7 @@ import { useState } from 'react';
 import DashboardFrame from './components/layout/DashboardFrame';
 import DashboardHeader from './components/layout/DashboardHeader';
 import SectionHeading from './components/layout/SectionHeading';
+import SourceTrace from './components/layout/SourceTrace';
 import KpiInfoPanel from './components/filters/KpiInfoPanel';
 import KpiSummaryGrid from './components/kpi/KpiSummaryGrid';
 import TrendLineChart, { NicapTrendChart } from './components/charts/TrendLineChart';
@@ -10,6 +11,7 @@ import FonacotContextStrip from './components/charts/FonacotContextStrip';
 import SniivContextStrip from './components/charts/SniivContextStrip';
 import InstitutionRankingTable from './components/tables/InstitutionRankingTable';
 import { useDashboardData } from './hooks/useDashboardData';
+import { ApiError } from './services/dashboardApi';
 import { COLORS } from './constants/dashboardTheme';
 import {
   formatMonth,
@@ -19,11 +21,35 @@ import {
   toNumberOrNull,
 } from './utils/formatters';
 
+const ETIQUETAS_ERROR = {
+  periodos: 'Catálogo de períodos',
+  instituciones: 'Fichas institucionales CNBV',
+  fonacot: 'Contexto FONACOT',
+  sniiv: 'Contexto SNIIV',
+  fuentes: 'Trazabilidad de fuentes',
+  health: 'Estado de la API',
+};
+
+function Aviso({ children, critico = false }) {
+  return (
+    <div
+      className={`mb-3 rounded border px-3 py-2 text-[11px] ${
+        critico
+          ? 'border-red-200 bg-red-50 text-[#B4472A]'
+          : 'border-amber-200 bg-amber-50 text-amber-800'
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function App() {
   const [showContextModal, setShowContextModal] = useState(false);
-  const { data, error } = useDashboardData();
+  const { data, error, loading } = useDashboardData();
 
   if (error) {
+    const esApi = error instanceof ApiError;
     return (
       <DashboardFrame>
         <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-5">
@@ -31,18 +57,31 @@ export default function App() {
             No fue posible cargar la información oficial
           </h2>
           <p className="text-xs text-slate-600 mt-2">{error.message}</p>
-          <p className="text-[11px] text-slate-400 mt-2">
-            El dataset sintético heredado no se utiliza como sustituto de los datos reales.
+          {esApi && (error.status || error.code || error.detail || error.campos?.length > 0) && (
+            <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-[11px] text-slate-500">
+              {error.code && <div><dt className="inline font-semibold">Tipo:</dt> <dd className="inline">{error.code}</dd></div>}
+              {error.status && <div><dt className="inline font-semibold">HTTP:</dt> <dd className="inline">{error.status}</dd></div>}
+              {error.detail && <div className="sm:col-span-2"><dt className="inline font-semibold">Detalle:</dt> <dd className="inline">{error.detail}</dd></div>}
+              {error.campos?.length > 0 && (
+                <div className="sm:col-span-2">
+                  <dt className="inline font-semibold">Campos:</dt>{' '}
+                  <dd className="inline">{error.campos.join(', ')}</dd>
+                </div>
+              )}
+            </dl>
+          )}
+          <p className="text-[11px] text-slate-400 mt-3">
+            No se sustituyó la respuesta fallida por datos de demostración.
           </p>
         </div>
       </DashboardFrame>
     );
   }
 
-  if (!data) {
+  if (loading || !data) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F3F5F8] text-slate-600 text-sm font-medium">
-        Cargando tablero gerencial...
+        Cargando tablero gerencial desde la API oficial...
       </div>
     );
   }
@@ -60,6 +99,7 @@ export default function App() {
   const alcanceRanking = data.limitadoInstituciones
     ? `Top 5 calculado sobre las ${institucionesConsultadas} instituciones devueltas por la API (respuesta limitada por el parámetro limite); no cubre todo el universo de cooperativas.`
     : `Top 5 calculado sobre las ${institucionesConsultadas} instituciones devueltas por la API; no cubre todo el universo de cooperativas.`;
+  const avisosParciales = Object.entries(data.errores ?? {});
 
   return (
     <DashboardFrame>
@@ -68,8 +108,11 @@ export default function App() {
           ===================================================================== */}
       <DashboardHeader
         periodo={data.periodo}
+        corteInstitucional={data.corteInstituciones}
         trimestre={data.trimestreInstituciones}
-        limite={data.totalDevueltosInstituciones}
+        limite={institucionesConsultadas}
+        seleccion={data.seleccion}
+        catalogos={data.catalogos}
         showContextModal={showContextModal}
         setShowContextModal={setShowContextModal}
       />
@@ -79,6 +122,20 @@ export default function App() {
         open={showContextModal}
         onClose={() => setShowContextModal(false)}
       />
+
+      {/* Fallos parciales: el resto del tablero se conserva */}
+      {avisosParciales.length > 0 && (
+        <Aviso>
+          <strong>Alertas parciales de la API:</strong>
+          <ul className="list-disc pl-4 mt-1 space-y-0.5">
+            {avisosParciales.map(([clave, mensaje]) => (
+              <li key={clave}>
+                <span className="font-semibold">{ETIQUETAS_ERROR[clave] ?? clave}:</span> {mensaje}
+              </li>
+            ))}
+          </ul>
+        </Aviso>
+      )}
 
       {/* =====================================================================
           ZONA SUPERIOR — 01 / RESUMEN EJECUTIVO
@@ -95,6 +152,13 @@ export default function App() {
         >
           01 / RESUMEN EJECUTIVO
         </SectionHeading>
+
+        {data.sinDatosCnbv && (
+          <Aviso>HTTP 200 sin datos: CNBV no publica observaciones para el corte {data.periodo}. No se imputan valores ausentes.</Aviso>
+        )}
+        {data.notaCnbv && (
+          <p className="mb-3 text-[11px] text-slate-400">Nota oficial: {data.notaCnbv}</p>
+        )}
 
         <KpiSummaryGrid
           corte={data.corte}
@@ -183,6 +247,9 @@ export default function App() {
                 (<code>kpi03_liquidez_no_disponible_pct</code> = null).
               </div>
               <div>Fuente: {data.fuenteInstituciones}</div>
+              {data.claveSeisInstituciones && (
+                <div>Clave consultada: {data.claveSeisInstituciones} (cadena oficial, ceros iniciales conservados)</div>
+              )}
             </div>
           </div>
         </section>
@@ -199,6 +266,7 @@ export default function App() {
             totalDevueltos={data.totalDevueltosInstituciones}
             nota={data.notaInstituciones}
             fuente={data.fuenteInstituciones}
+            error={data.errores?.instituciones}
           />
         </section>
       </div>
@@ -211,20 +279,36 @@ export default function App() {
           datos={data.fonacot}
           trimestre={data.trimestreFonacot}
           fuente={data.fuenteFonacot}
+          error={data.errores?.fonacot}
+          sinDatos={data.sinDatosFonacot}
         />
         <SniivContextStrip
           datos={data.sniiv}
           anio={data.anioSniiv}
           fuente={data.fuenteSniiv}
+          error={data.errores?.sniiv}
+          sinDatos={data.sinDatosSniiv}
         />
       </div>
 
       {/* =====================================================================
-          PIE INFORMATIVO
+          PIE INFORMATIVO Y TRAZABILIDAD
           ===================================================================== */}
       <footer className="mt-5 pt-3 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[11px] text-slate-400 font-medium">
-        <div>
-          Datos oficiales CNBV · FONACOT · SNIIV · Contrato API 1.0.0 · Corte {data.periodo}
+        <div className="space-y-0.5">
+          <div>
+            Datos oficiales CNBV · FONACOT · SNIIV · Contrato API {data.contratoVersion} · Corte {data.periodo}
+          </div>
+          <div className="text-[10px]">
+            <SourceTrace
+              fuentes={data.fuentes}
+              error={data.errores?.fuentes}
+              estadoApi={data.estadoApi}
+            />
+            {data.errores?.health && (
+              <span className="text-amber-700"> · Estado API no disponible: {data.errores.health}</span>
+            )}
+          </div>
         </div>
         <div>
           Equipo &ldquo;Los Menchos Victoria&rdquo; · PostgreSQL + FastAPI + React &amp; Recharts

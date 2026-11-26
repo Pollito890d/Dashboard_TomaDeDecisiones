@@ -8,7 +8,7 @@ import {
 } from '../../utils/formatters';
 
 /** Contexto externo M-03: FONACOT, separado del universo SOCAP. */
-export default function FonacotContextStrip({ datos, trimestre, fuente }) {
+export default function FonacotContextStrip({ datos, trimestre, fuente, error, sinDatos }) {
   return (
     <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-5 flex flex-col">
       <div className="flex items-center justify-between gap-2 mb-1">
@@ -26,8 +26,14 @@ export default function FonacotContextStrip({ datos, trimestre, fuente }) {
         Crédito al trabajo · universo externo, no atribuible a una cooperativa
       </p>
 
-      {!datos ? (
-        <div className="text-xs text-slate-500">Sin información oficial disponible para el corte solicitado.</div>
+      {error ? (
+        <div className="text-xs text-[#D95D2E]">No fue posible consultar este contexto: {error}</div>
+      ) : !datos ? (
+        <div className="text-xs text-slate-500">
+          {sinDatos
+            ? 'HTTP 200 sin datos: FONACOT no publica información para el corte solicitado.'
+            : 'Sin información oficial disponible para el corte solicitado.'}
+        </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <ContextMetric etiqueta="Créditos ejercidos" valor={formatInteger(datos.creditos_totales_nacional)} />

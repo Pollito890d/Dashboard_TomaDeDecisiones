@@ -2,8 +2,11 @@ import FilterBar from '../filters/FilterBar';
 
 export default function DashboardHeader({
   periodo,
+  corteInstitucional,
   trimestre,
   limite,
+  seleccion,
+  catalogos,
   showContextModal,
   setShowContextModal,
 }) {
@@ -25,8 +28,11 @@ export default function DashboardHeader({
 
       <FilterBar
         periodo={periodo}
+        corteInstitucional={corteInstitucional}
         trimestre={trimestre}
         limite={limite}
+        seleccion={seleccion}
+        catalogos={catalogos}
         showContextModal={showContextModal}
         setShowContextModal={setShowContextModal}
       />
