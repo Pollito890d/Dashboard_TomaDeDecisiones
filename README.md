@@ -18,7 +18,7 @@ Fuentes abiertas (CNBV · FONACOT · SNIIV)
   Database/  (esquema, vistas y validación PostgreSQL)
          │
          ▼
-  Backend/   (API FastAPI: pendiente)
+  Backend/   (API FastAPI de solo lectura: siete endpoints GET + /docs)
          │
          ▼
   Frontend/  (React + Vite + Tailwind + Recharts; aún con mock)
@@ -30,7 +30,9 @@ Los contratos y la línea base están documentados en [`docs/auditoria.md`](docs
 
 ```
 .
-├── Backend/            API FastAPI (pendiente)
+├── Backend/            API FastAPI (Fase V: pasos 18-22)
+│   ├── app/            Configuración, repositorios, servicios, routers y esquemas
+│   ├── tests/          Suite Pytest del backend (79 pruebas)
 │   └── .env.example    Plantilla de configuración, sin credenciales reales
 ├── Database/
 │   ├── 01_schema.sql              Esquema de referencia (sin cambios)
@@ -70,6 +72,41 @@ Carga PostgreSQL (exige las tres fuentes):
 
 `--cargar` delega en `ETL/load_facts.py`: una sola transacción, 19 filas de trazabilidad, cinco tablas de hechos, FK y precisión verificadas, idempotencia por SHA-256 y rollback ante cualquier error. Sin `--cargar` no se abre conexión a la base.
 
+## Backend (Fase V)
+
+La API es de **solo lectura** (`default_transaction_read_only=on`) y expone siete rutas GET: `/api/health`, `/api/dashboard`, `/api/instituciones`, `/api/periodos`, `/api/fuentes`, `/api/fonacot` y `/api/sniiv`. El contrato JSON `1.0.0` está en [`docs/api_contract.md`](docs/api_contract.md) y la evidencia de validación en [`docs/validacion_backend.md`](docs/validacion_backend.md).
+
+Requisitos: PostgreSQL `dashboard-postgres` en funcionamiento y `Backend/.env` creado a partir de `Backend/.env.example` con la `DATABASE_URL` local (el archivo real está ignorado por Git).
+
+```powershell
+# 1) Dependencias (una sola vez)
+.\.venv\Scripts\python.exe -m pip install -r Backend\requirements.txt
+
+# 2) Pruebas del backend (79 pruebas)
+.\.venv\Scripts\python.exe -m pytest Backend\tests -q
+
+# 3) Arrancar Uvicorn en localhost:8000
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir Backend --host 127.0.0.1 --port 8000
+```
+
+Con el servidor activo: Swagger en <http://127.0.0.1:8000/docs> y esquema OpenAPI en <http://127.0.0.1:8000/openapi.json>. Si el contenedor se detiene, `/api/health` responde `503` en ~5 segundos; al reiniciarlo con `docker start dashboard-postgres` la API se recupera sin reiniciar Uvicorn.
+
+Ejemplos rápidos:
+
+```powershell
+# Salud y cortes disponibles
+curl http://127.0.0.1:8000/api/health
+curl "http://127.0.0.1:8000/api/periodos?anio=2025&limite=3"
+
+# KPIs sectoriales mensuales y ficha institucional trimestral
+curl "http://127.0.0.1:8000/api/dashboard?periodo=2025-12"
+curl "http://127.0.0.1:8000/api/instituciones?trimestre=2025-Q4&limite=10"
+
+# Contexto externo (los desgloses son opcionales)
+curl "http://127.0.0.1:8000/api/fonacot?anio=2025&trimestre=2025-Q4"
+curl "http://127.0.0.1:8000/api/sniiv?anio=2025"
+```
+
 ## Validación en Windows
 
 No hay `psql` instalado en el host. El único ejecutor SQL es:
@@ -106,7 +143,7 @@ npm run build      # genera Frontend/dist/
 npm run preview    # sirve la compilación generada
 ```
 
-Mientras no exista la API, el adaptador actual cae a los datos ilustrativos de `Frontend/src/data/mockDashboardData.js`. No se modificó `Frontend/`.
+La API ya está disponible, pero el adaptador actual del frontend todavía cae a los datos ilustrativos de `Frontend/src/data/mockDashboardData.js` y envía filtros del mock (`periodo=8w`, `sucursal`). Su migración al contrato `1.0.0` está pendiente y no se modificó `Frontend/`.
 
 ## Estado del proyecto
 
@@ -114,7 +151,9 @@ Mientras no exista la API, el adaptador actual cae a los datos ilustrativos de `
 - Pasos 06–11: esquema, catálogos, perfilado, conciliación y calidad del ETL.
 - Pasos 12–14: ETL local con validación asertiva y manifiesto determinista.
 - Pasos 15–17: integración PostgreSQL, 14 vistas/KPIs y validación con evidencia real.
+- Pasos 18–21: backend FastAPI de solo lectura, contrato JSON `1.0.0` y siete endpoints GET.
+- Paso 22: suite del backend (79 pruebas), comparaciones SQL independientes y validación HTTP con PostgreSQL detenido y recuperado.
 
-Detalle de la integración y las pruebas: [`docs/etl_integracion_pendiente.md`](docs/etl_integracion_pendiente.md) y [`docs/validacion_kpis.md`](docs/validacion_kpis.md).
+Detalle de la integración y las pruebas: [`docs/etl_integracion_pendiente.md`](docs/etl_integracion_pendiente.md), [`docs/validacion_kpis.md`](docs/validacion_kpis.md), [`docs/validacion_backend.md`](docs/validacion_backend.md) y [`docs/api_contract.md`](docs/api_contract.md).
 
-Pendiente para una fase posterior: API FastAPI y sustitución del mock del frontend por los KPIs validados. No se inició esa fase.
+Pendiente para una fase posterior: sustituir el mock del frontend por los KPIs validados del contrato `1.0.0`.
