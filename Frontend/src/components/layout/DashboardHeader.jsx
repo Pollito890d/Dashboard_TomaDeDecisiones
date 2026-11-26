@@ -1,11 +1,9 @@
 import FilterBar from '../filters/FilterBar';
 
 export default function DashboardHeader({
-  periodoId,
-  setPeriodoId,
-  sucursalId,
-  setSucursalId,
-  setTableViewMode,
+  periodo,
+  trimestre,
+  limite,
   showContextModal,
   setShowContextModal,
 }) {
@@ -17,20 +15,18 @@ export default function DashboardHeader({
             Caja de Ahorro y Préstamo
           </h1>
           <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-teal-50 text-[#0E7C7B] border border-teal-200/70">
-            CNBV · CONDUSEF
+            CNBV · FONACOT · SNIIV
           </span>
         </div>
         <p className="text-xs sm:text-[13px] text-slate-500 mt-0.5 font-medium">
-          Panel de liquidez, cartera y recuperación · Vista gerencial
+          Información sectorial e institucional · contextos externos · contrato API 1.0.0
         </p>
       </div>
 
       <FilterBar
-        periodoId={periodoId}
-        setPeriodoId={setPeriodoId}
-        sucursalId={sucursalId}
-        setSucursalId={setSucursalId}
-        setTableViewMode={setTableViewMode}
+        periodo={periodo}
+        trimestre={trimestre}
+        limite={limite}
         showContextModal={showContextModal}
         setShowContextModal={setShowContextModal}
       />

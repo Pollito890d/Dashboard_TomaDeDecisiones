@@ -1,86 +1,54 @@
 import KpiCard from './KpiCard';
 import { COLORS } from '../../constants/dashboardTheme';
-import { formatCurrencyFull } from '../../utils/formatters';
+import { formatPercent, formatPercentNumber, formatMonth } from '../../utils/formatters';
 
-export default function KpiSummaryGrid({ resumen }) {
+const COLOR_POR_KPI = {
+  'KPI-01': COLORS.orangeRed,
+  'KPI-02': COLORS.teal,
+  'KPI-03': COLORS.teal,
+  'KPI-04': COLORS.teal,
+  'KPI-05': COLORS.tealLight,
+  'KPI-06': COLORS.slateMuted,
+  'KPI-07': COLORS.teal,
+  'KPI-08': COLORS.amber,
+  'KPI-09': COLORS.amber,
+};
+
+export default function KpiSummaryGrid({ corte, indicadores, periodo, fuente, bandasPorKpi }) {
+  if (!corte) {
+    return (
+      <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-5 text-xs text-slate-500">
+        Sin observación de KPIs sectoriales para el corte {periodo}. No se imputan valores ausentes.
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* Tarjeta KPI 1: Liquidez disponible */}
-      <KpiCard accentColor={COLORS.teal}>
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-slate-500">
-            Liquidez disponible
-          </span>
-          <span
-            title={`Obligaciones a corto plazo: ${formatCurrencyFull(resumen.obligaciones_corto_plazo)}`}
-            className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-teal-50 text-[#0E7C7B]"
-          >
-            Razón {resumen.razon_liquidez_pct}%
-          </span>
-        </div>
-        <div className="mt-2 text-2xl sm:text-[28px] font-extrabold text-slate-900 tracking-tight leading-none">
-          {formatCurrencyFull(resumen.liquidez_disponible)}
-        </div>
-        <div className="mt-3 flex items-center justify-between text-[11px]">
-          <span className="font-semibold text-[#0E7C7B]">
-            + {resumen.variacion_liquidez_pct}% vs. semana anterior
-          </span>
-        </div>
-      </KpiCard>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {indicadores.map((indicador) => {
+        const banda = bandasPorKpi[indicador.id];
+        let detalle = '';
+        if (indicador.id === 'KPI-04' && banda?.umbral_regulatorio_min_pct) {
+          detalle = `Umbral regulatorio: superior a ${formatPercent(banda.umbral_regulatorio_min_pct)}`;
+        } else if (banda?.tipo_umbral === 'observado_2025') {
+          detalle = `Banda observada 2025: ${formatPercent(banda.min_2025_pct)} – ${formatPercent(banda.max_2025_pct)} (no regulatoria)`;
+        }
 
-      {/* Tarjeta KPI 2: Colocación vs. ahorro */}
-      <KpiCard accentColor={COLORS.teal}>
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-slate-500">
-            Colocación vs. ahorro
-          </span>
-          <span className="text-[10px] font-medium text-slate-400">
-            Ahorro: ${(resumen.ahorro_total / 1000000).toFixed(2)}M
-          </span>
-        </div>
-        <div className="mt-2 text-2xl sm:text-[28px] font-extrabold text-slate-900 tracking-tight leading-none">
-          {resumen.colocacion_vs_ahorro_pct}%
-        </div>
-        <div className="mt-3 text-[11px] font-medium text-slate-500">
-          Meta de referencia: {resumen.meta_colocacion_pct}%
-        </div>
-      </KpiCard>
-
-      {/* Tarjeta KPI 3: Tasa de morosidad */}
-      <KpiCard accentColor={COLORS.orangeRed}>
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-slate-500">
-            Tasa de morosidad
-          </span>
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-orange-50 text-[#D95D2E]">
-            Mora: {formatCurrencyFull(resumen.capital_cartera_vencida)}
-          </span>
-        </div>
-        <div className="mt-2 text-2xl sm:text-[28px] font-extrabold text-slate-900 tracking-tight leading-none">
-          {resumen.tasa_morosidad_pct}%
-        </div>
-        <div className="mt-3 text-[11px] font-semibold text-[#D95D2E]">
-          Alerta: revisar préstamos vencidos
-        </div>
-      </KpiCard>
-
-      {/* Tarjeta KPI 4: Recuperación de cartera */}
-      <KpiCard accentColor={COLORS.amber}>
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-slate-500">
-            Recuperación de cartera
-          </span>
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700">
-            Seguimiento
-          </span>
-        </div>
-        <div className="mt-2 text-2xl sm:text-[28px] font-extrabold text-slate-900 tracking-tight leading-none">
-          {resumen.recuperacion_cartera_pct}%
-        </div>
-        <div className="mt-3 text-[11px] font-semibold text-[#0E7C7B]">
-          + {resumen.variacion_recuperacion_pp} pp vs. mes anterior
-        </div>
-      </KpiCard>
+        return (
+          <KpiCard
+            key={indicador.id}
+            accentColor={COLOR_POR_KPI[indicador.id]}
+            id={indicador.id}
+            nombre={indicador.nombre}
+            valor={formatPercentNumber(corte[indicador.campo])}
+            unidad={indicador.unidad}
+            descripcion={indicador.descripcion}
+            detalle={detalle}
+            corte={formatMonth(corte.periodo_ym ?? periodo)}
+            fuente={indicador.fuente ?? fuente}
+          />
+        );
+      })}
     </div>
   );
 }

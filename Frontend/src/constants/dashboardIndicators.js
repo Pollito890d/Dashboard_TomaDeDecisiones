@@ -1,0 +1,146 @@
+/**
+ * Metadatos del catálogo aprobado (docs/catalogo_kpis.md).
+ *
+ * NO contiene valores financieros: solo nombres, campos del contrato 1.0.0,
+ * fórmulas documentadas, unidades, fuentes e interpretaciones. Los valores se
+ * leen en tiempo de ejecución desde la API.
+ */
+
+export const FUENTE_CNBV_SERIES = 'CNBV · SH_SOCAPS.xlsm!Series';
+export const FUENTE_CNBV_BOLETINES = 'CNBV · boletines BE_SOCAPS';
+
+export const INDICADORES_SECTORIALES = [
+  {
+    id: 'KPI-01',
+    nombre: 'Índice de Morosidad (IMOR)',
+    campo: 'kpi01_imor_pct',
+    unidad: '%',
+    formula: 'v(17) / v(9) × 100',
+    descripcion: 'Cartera vencida respecto a la cartera total.',
+    interpretacion: 'Mayor valor implica mayor presión de morosidad; se lee junto con ICOR.',
+    fuente: FUENTE_CNBV_SERIES,
+  },
+  {
+    id: 'KPI-02',
+    nombre: 'Índice de Cobertura (ICOR)',
+    campo: 'kpi02_icor_pct',
+    unidad: '%',
+    formula: 'ABS(v(21)) / v(17) × 100',
+    descripcion: 'Estimación preventiva frente a la cartera vencida.',
+    interpretacion: '100 % implica provisiones equivalentes a la cartera vencida; no es un umbral normativo.',
+    fuente: FUENTE_CNBV_SERIES,
+  },
+  {
+    id: 'KPI-03',
+    nombre: 'Coeficiente de liquidez',
+    campo: 'kpi03_liquidez_pct',
+    unidad: '%',
+    formula: 'v(194) / v(195) × 100',
+    descripcion: 'Activos líquidos de corto plazo frente a pasivos de corto plazo.',
+    interpretacion: 'El cociente cae si los pasivos de corto plazo crecen más rápido que los activos líquidos.',
+    fuente: FUENTE_CNBV_SERIES,
+  },
+  {
+    id: 'KPI-04',
+    nombre: 'Nivel de Capitalización (NICAP)',
+    campo: 'kpi04_nicap_pct',
+    unidad: '%',
+    formula: 'v(212) / v(213) × 100',
+    descripcion: 'Capital neto por cada peso de requerimiento por riesgos.',
+    interpretacion: 'Único indicador con umbral regulatorio documentado: debe ser superior a 100 %.',
+    fuente: FUENTE_CNBV_SERIES,
+  },
+  {
+    id: 'KPI-05',
+    nombre: 'Tasa implícita activa',
+    campo: 'kpi05_tasa_activa_pct',
+    unidad: '% anual',
+    formula: 'v(145) / prom12(13) × 100',
+    descripcion: 'Rendimiento anualizado de la cartera vigente.',
+    interpretacion: 'Se compara con la tasa pasiva para obtener el spread de intermediación.',
+    fuente: FUENTE_CNBV_SERIES,
+  },
+  {
+    id: 'KPI-06',
+    nombre: 'Tasa implícita pasiva',
+    campo: 'kpi06_tasa_pasiva_pct',
+    unidad: '% anual',
+    formula: 'v(153) / prom12(35) × 100',
+    descripcion: 'Costo anualizado de la captación.',
+    interpretacion: 'La nota oficial cita captación tradicional, pero el valor publicado se reproduce con el total de gastos por intereses.',
+    fuente: FUENTE_CNBV_SERIES,
+  },
+  {
+    id: 'KPI-07',
+    nombre: 'Capital contable / Activo total',
+    campo: 'kpi07_capital_activo_pct',
+    unidad: '%',
+    formula: 'v(46) / v(5) × 100',
+    descripcion: 'Participación del capital contable en el activo total.',
+    interpretacion: 'Mayor cociente implica menor dependencia de pasivos; complementa a NICAP.',
+    fuente: FUENTE_CNBV_SERIES,
+  },
+  {
+    id: 'KPI-08',
+    nombre: 'Rendimiento sobre el activo (ROA)',
+    campo: 'kpi08_roa_pct',
+    unidad: '% anual',
+    formula: 'v(141) / prom12(5) × 100',
+    descripcion: 'Resultado neto de 12 meses respecto al activo promedio.',
+    interpretacion: 'Eficiencia del activo; caídas sostenidas se leen junto con IMOR y tasa activa.',
+    fuente: FUENTE_CNBV_SERIES,
+  },
+  {
+    id: 'KPI-09',
+    nombre: 'Colocación / captación tradicional',
+    campo: 'kpi09_colocacion_captacion_trad_pct',
+    unidad: '%',
+    formula: 'v(13) / v(35) × 100',
+    descripcion: 'Cartera vigente respecto a la captación tradicional (saldos de cierre).',
+    interpretacion: 'Indicador de monitoreo propio; no es un ratio regulatorio y no admite meta inventada.',
+    fuente: FUENTE_CNBV_SERIES,
+  },
+];
+
+export const METRICAS_COMPLEMENTARIAS = [
+  {
+    id: 'M-01',
+    nombre: 'Participación femenina en el sector',
+    campo: 'm01_participacion_femenina_socios_pct',
+    unidad: '%',
+    formula: 'v(203) / (v(203) + v(204)) × 100',
+    descripcion: 'Mujeres respecto a la suma de socios reportados por género.',
+    interpretacion: 'El denominador es la suma de componentes, no el total publicado de socios.',
+    fuente: FUENTE_CNBV_SERIES,
+  },
+  {
+    id: 'M-02',
+    nombre: 'Participación por activo de cada institución',
+    campo: 'm02_participacion_activo_publicada_pct',
+    unidad: '%',
+    formula: 'Activo de la sociedad / Activo TOTAL × 100',
+    descripcion: 'Peso de cada cooperativa en el activo sectorial.',
+    interpretacion: 'Solo se calcula para instituciones que enviaron información.',
+    fuente: FUENTE_CNBV_BOLETINES,
+  },
+  {
+    id: 'M-03',
+    nombre: 'FONACOT: créditos, monto y participación femenina',
+    campo: 'm03_participacion_femenina_creditos_pct',
+    unidad: '%',
+    formula: 'Σ(créditos mujeres) / créditos totales × 100',
+    descripcion: 'Contexto externo de crédito al trabajo; universo distinto al de las SOCAP.',
+    interpretacion: 'Los créditos son operaciones, no personas únicas; APP MOVIL es canal, no entidad.',
+    fuente: 'FONACOT · datos abiertos de crédito',
+  },
+  {
+    id: 'M-04',
+    nombre: 'SNIIV: financiamientos para vivienda',
+    campo: 'm04_participacion_mujeres_acciones_pct',
+    unidad: '%',
+    formula: 'Σ acciones[sexo=2] / Σ acciones[sexo∈{1,2}] × 100',
+    descripcion: 'Contexto externo anual de financiamiento habitacional.',
+    interpretacion: 'Las filas sin sexo se conservan en el total y se excluyen solo del denominador de género.',
+    fuente: 'SNIIV · financiamientos de vivienda',
+  },
+];

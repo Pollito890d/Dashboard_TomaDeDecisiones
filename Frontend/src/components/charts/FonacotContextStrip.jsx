@@ -1,26 +1,62 @@
 import { Users } from 'lucide-react';
+import ContextMetric from '../layout/ContextMetric';
+import {
+  formatCompactCurrency,
+  formatInteger,
+  formatPercent,
+  formatQuarter,
+} from '../../utils/formatters';
 
-export default function FonacotContextStrip({ fonacotComparativa }) {
-  // Bloque integrado del 8° Indicador (Datos Abiertos FONACOT - Página 2, 8 y 15 del PDF)
+/** Contexto externo M-03: FONACOT, separado del universo SOCAP. */
+export default function FonacotContextStrip({ datos, trimestre, fuente }) {
   return (
-    <div className="mt-6 pt-4 border-t border-slate-100">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-slate-50/90 border border-slate-200/70 rounded-md px-3.5 py-2.5">
-        <div className="flex items-start sm:items-center gap-2.5">
-          <Users className="w-4 h-4 text-[#0E7C7B] shrink-0 mt-0.5 sm:mt-0" />
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold text-slate-800">
-                Contexto Externo FONACOT (Equidad y Participación Femenina)
-              </span>
-              <span className="text-[10px] font-semibold px-1.5 py-0.2 bg-teal-50 text-[#0E7C7B] rounded border border-teal-200/60">
-                +{fonacotComparativa.brecha_pp} pp vs. mercado
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              Socias en la Caja: <strong className="text-[#0E7C7B]">{fonacotComparativa.pct_socias_caja}%</strong> ({fonacotComparativa.total_socias_activas} socias) vs. Mujeres con crédito FONACOT: <strong className="text-slate-700">{fonacotComparativa.pct_mujeres_fonacot}%</strong> ({fonacotComparativa.trimestre_fuente})
-            </p>
-          </div>
+    <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-5 flex flex-col">
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <div className="flex items-center gap-2">
+          <Users className="w-4 h-4 text-[#0E7C7B]" />
+          <h3 className="text-[15px] font-bold text-slate-900">
+            Contexto externo · FONACOT (M-03)
+          </h3>
         </div>
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-teal-50 text-[#0E7C7B] whitespace-nowrap">
+          {formatQuarter(trimestre)}
+        </span>
+      </div>
+      <p className="text-xs text-slate-500 mb-3">
+        Crédito al trabajo · universo externo, no atribuible a una cooperativa
+      </p>
+
+      {!datos ? (
+        <div className="text-xs text-slate-500">Sin información oficial disponible para el corte solicitado.</div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <ContextMetric etiqueta="Créditos ejercidos" valor={formatInteger(datos.creditos_totales_nacional)} />
+          <ContextMetric etiqueta="Monto total" valor={formatCompactCurrency(datos.monto_total_nacional_mxn)} />
+          <ContextMetric
+            etiqueta="Participación femenina en créditos"
+            valor={formatPercent(datos.m03_participacion_femenina_creditos_pct)}
+          />
+          <ContextMetric
+            etiqueta="Participación femenina en monto"
+            valor={formatPercent(datos.m03_participacion_femenina_monto_pct)}
+          />
+          <ContextMetric
+            etiqueta="Ticket promedio"
+            valor={formatCompactCurrency(datos.m03_ticket_promedio_nacional_mxn)}
+          />
+          <ContextMetric
+            etiqueta="Canal APP MOVIL"
+            valor={formatInteger(datos.creditos_canal_app_movil)}
+            nota={formatCompactCurrency(datos.monto_canal_app_movil_mxn)}
+          />
+        </div>
+      )}
+
+      <div className="mt-auto pt-3 text-[10px] text-slate-400 space-y-1">
+        <div>
+          Los créditos contabilizan operaciones, no personas únicas. APP MOVIL es un canal, no una entidad federativa.
+        </div>
+        <div>Fuente: {fuente}</div>
       </div>
     </div>
   );

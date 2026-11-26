@@ -4,26 +4,42 @@ import DashboardHeader from './components/layout/DashboardHeader';
 import SectionHeading from './components/layout/SectionHeading';
 import KpiInfoPanel from './components/filters/KpiInfoPanel';
 import KpiSummaryGrid from './components/kpi/KpiSummaryGrid';
-import TrendLineChart from './components/charts/TrendLineChart';
-import { StateLoanBars, OverdueTypeBars } from './components/charts/HorizontalBarList';
+import TrendLineChart, { NicapTrendChart } from './components/charts/TrendLineChart';
+import HorizontalBarList from './components/charts/HorizontalBarList';
 import FonacotContextStrip from './components/charts/FonacotContextStrip';
-import OverdueInstallmentsTable from './components/tables/OverdueInstallmentsTable';
+import SniivContextStrip from './components/charts/SniivContextStrip';
+import InstitutionRankingTable from './components/tables/InstitutionRankingTable';
 import { useDashboardData } from './hooks/useDashboardData';
+import { COLORS } from './constants/dashboardTheme';
+import {
+  formatMonth,
+  formatNoDisponible,
+  formatPercent,
+  formatQuarter,
+  toNumberOrNull,
+} from './utils/formatters';
 
 export default function App() {
-  const [periodoId, setPeriodoId] = useState('8w');
-  const [sucursalId, setSucursalId] = useState('ALL');
-
-  // Estado para la tabla de detalle operativo (Zona 04)
-  // Wireframe mode shows the exact 3 rows of the Figma wireframe by default, with toggle to see all 10 overdue records
-  const [tableViewMode, setTableViewMode] = useState('wireframe'); // 'wireframe' | 'top10'
-  const [sortBy, setSortBy] = useState('wireframe_order'); // 'wireframe_order' | 'dias_desc' | 'monto_desc'
-  const [selectedTipoFilter, setSelectedTipoFilter] = useState(null);
   const [showContextModal, setShowContextModal] = useState(false);
+  const { data, error } = useDashboardData();
 
-  const dashboardData = useDashboardData({ periodoId, sucursalId });
+  if (error) {
+    return (
+      <DashboardFrame>
+        <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-5">
+          <h2 className="text-[15px] font-bold text-[#D95D2E]">
+            No fue posible cargar la información oficial
+          </h2>
+          <p className="text-xs text-slate-600 mt-2">{error.message}</p>
+          <p className="text-[11px] text-slate-400 mt-2">
+            El dataset sintético heredado no se utiliza como sustituto de los datos reales.
+          </p>
+        </div>
+      </DashboardFrame>
+    );
+  }
 
-  if (!dashboardData) {
+  if (!data) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F3F5F8] text-slate-600 text-sm font-medium">
         Cargando tablero gerencial...
@@ -31,135 +47,187 @@ export default function App() {
     );
   }
 
-  const {
-    resumen,
-    evolucion_semanal,
-    prestamos_por_estado,
-    cartera_vencida_por_tipo,
-    fonacot_comparativa,
-  } = dashboardData;
+  const ordenarPor = (campo) =>
+    [...data.instituciones]
+      .filter((fila) => toNumberOrNull(fila[campo]) !== null)
+      .sort((a, b) => toNumberOrNull(b[campo]) - toNumberOrNull(a[campo]))
+      .slice(0, 5);
+
+  const topImor = ordenarPor('kpi01_imor_publicado_pct');
+  const topIcor = ordenarPor('kpi02_icor_derivado_pct');
+  const trimestreTexto = formatQuarter(data.trimestreInstituciones);
+  const institucionesConsultadas = data.totalDevueltosInstituciones ?? data.instituciones.length;
+  const alcanceRanking = data.limitadoInstituciones
+    ? `Top 5 calculado sobre las ${institucionesConsultadas} instituciones devueltas por la API (respuesta limitada por el parámetro limite); no cubre todo el universo de cooperativas.`
+    : `Top 5 calculado sobre las ${institucionesConsultadas} instituciones devueltas por la API; no cubre todo el universo de cooperativas.`;
 
   return (
     <DashboardFrame>
       {/* =====================================================================
-          ENCABEZADO SUPERIOR Y FILTROS GLOBALES
+          ENCABEZADO SUPERIOR Y CORTES OFICIALES
           ===================================================================== */}
       <DashboardHeader
-        periodoId={periodoId}
-        setPeriodoId={setPeriodoId}
-        sucursalId={sucursalId}
-        setSucursalId={setSucursalId}
-        setTableViewMode={setTableViewMode}
+        periodo={data.periodo}
+        trimestre={data.trimestreInstituciones}
+        limite={data.totalDevueltosInstituciones}
         showContextModal={showContextModal}
         setShowContextModal={setShowContextModal}
       />
 
-      {/* Panel desplegable opcional con la matriz técnica de los 8 KPIs para la exposición con el profesor */}
+      {/* Catálogo de los 13 indicadores efectivamente documentados */}
       <KpiInfoPanel
         open={showContextModal}
         onClose={() => setShowContextModal(false)}
-        resumen={resumen}
       />
 
       {/* =====================================================================
-          ZONA SUPERIOR — 01 / RESUMEN EJECUTIVO (EL GANCHO Y EL CONFLICTO)
+          ZONA SUPERIOR — 01 / RESUMEN EJECUTIVO
           ===================================================================== */}
       <section className="mt-5" aria-labelledby="heading-resumen">
         <SectionHeading
           id="heading-resumen"
           aside={
             <span className="text-[11px] text-slate-400 hidden sm:inline">
-              Corte dominical: 22/11/2026 · Razón de liquidez:{' '}
-              <strong className="text-slate-600">{resumen.razon_liquidez_pct}%</strong>
+              Corte: {formatMonth(data.periodo)} ·{' '}
+              <strong className="text-slate-600">9 KPIs sectoriales</strong>
             </span>
           }
         >
           01 / RESUMEN EJECUTIVO
         </SectionHeading>
 
-        <KpiSummaryGrid resumen={resumen} />
+        <KpiSummaryGrid
+          corte={data.corte}
+          indicadores={data.indicadores}
+          periodo={data.periodo}
+          fuente={data.fuenteCnbv}
+          bandasPorKpi={data.bandasPorKpi}
+        />
       </section>
 
       {/* =====================================================================
-          ZONA CENTRAL — 02 / TENDENCIAS Y COMPARATIVA (KPI 5)
+          ZONA CENTRAL — 02 / TENDENCIAS Y COMPARATIVA MENSUAL
           ===================================================================== */}
       <section className="mt-6" aria-labelledby="heading-tendencias">
         <SectionHeading id="heading-tendencias">
           02 / TENDENCIAS Y COMPARATIVA
         </SectionHeading>
 
-        <TrendLineChart
-          evolucionSemanal={evolucion_semanal}
-          sucursalId={sucursalId}
-        />
+        <div className="space-y-5">
+          <TrendLineChart
+            serieAnual={data.serieAnual}
+            periodo={data.periodo}
+            fuente={data.fuenteCnbv}
+          />
+          <NicapTrendChart
+            serieAnual={data.serieAnual}
+            periodo={data.periodo}
+            fuente={data.fuenteCnbv}
+            bandaNicap={data.bandasPorKpi['KPI-04']}
+          />
+        </div>
       </section>
 
       {/* =====================================================================
-          ZONA INFERIOR — NIVEL 3 (03 / CAUSA RAÍZ) Y NIVEL 4 (04 / DETALLE OPERATIVO)
+          ZONA INFERIOR — 03 / ANÁLISIS FINANCIERO Y 04 / COMPARATIVA
           ===================================================================== */}
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* ZONA INFERIOR IZQUIERDA: 03 / CAUSA RAÍZ (7 columnas en escritorio) */}
-        <section className="lg:col-span-7 flex flex-col" aria-labelledby="heading-causa-raiz">
-          <SectionHeading id="heading-causa-raiz">03 / CAUSA RAÍZ</SectionHeading>
+        <section className="lg:col-span-7 flex flex-col" aria-labelledby="heading-analisis">
+          <SectionHeading id="heading-analisis">03 / ANÁLISIS FINANCIERO</SectionHeading>
 
           <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-5 flex-1 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-[15px] font-bold text-slate-900">
-                  ¿Dónde se concentra la cartera vencida?
+                  Riesgo y cobertura por cooperativa
                 </h3>
-                {selectedTipoFilter && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTipoFilter(null)}
-                    className="text-[11px] font-semibold text-[#D95D2E] hover:underline"
-                  >
-                    Quitar filtro ({selectedTipoFilter}) ✕
-                  </button>
-                )}
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-teal-50 text-[#0E7C7B] whitespace-nowrap">
+                  Institucional · {trimestreTexto}
+                </span>
               </div>
+              <p className="text-xs text-slate-500 mb-4">
+                Comparación descriptiva entre las {institucionesConsultadas} instituciones consultadas; no establece una relación de causalidad ni cubre todo el universo de cooperativas.
+              </p>
 
-              {/* Dos gráficos de barras horizontales lado a lado como en el Wireframe */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-1">
-                <StateLoanBars prestamosPorEstado={prestamos_por_estado} />
-                <OverdueTypeBars
-                  carteraVencidaPorTipo={cartera_vencida_por_tipo}
-                  selectedTipoFilter={selectedTipoFilter}
-                  onSelectTipo={setSelectedTipoFilter}
-                />
-              </div>
+              {topImor.length === 0 ? (
+                <p className="text-xs text-slate-500">
+                  Sin fichas institucionales con valores publicados para el corte solicitado.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-1">
+                  <HorizontalBarList
+                    title={`IMOR publicado · ${institucionesConsultadas} cooperativas consultadas (%)`}
+                    items={topImor}
+                    labelKey="institucion_nombre"
+                    valueKey="kpi01_imor_publicado_pct"
+                    color={COLORS.orangeRed}
+                    formatValue={formatPercent}
+                    descripcion={`${alcanceRanking} Orden por IMOR publicado descendente.`}
+                  />
+                  <HorizontalBarList
+                    title={`ICOR derivado · ${institucionesConsultadas} cooperativas consultadas (%)`}
+                    items={topIcor}
+                    labelKey="institucion_nombre"
+                    valueKey="kpi02_icor_derivado_pct"
+                    color={COLORS.teal}
+                    formatValue={formatPercent}
+                    descripcion={`${alcanceRanking} Cobertura derivada de campos oficiales; no es recuperación de cartera.`}
+                  />
+                </div>
+              )}
             </div>
 
-            <FonacotContextStrip fonacotComparativa={fonacot_comparativa} />
+            <div className="mt-6 pt-4 border-t border-slate-100 text-[10px] text-slate-400 space-y-1">
+              <div>
+                Liquidez por cooperativa: {formatNoDisponible()} — los boletines BE_SOCAPS no publican activos y pasivos de corto plazo con corte ≤ 30 días
+                (<code>kpi03_liquidez_no_disponible_pct</code> = null).
+              </div>
+              <div>Fuente: {data.fuenteInstituciones}</div>
+            </div>
           </div>
         </section>
 
-        {/* ZONA INFERIOR DERECHA: 04 / DETALLE OPERATIVO (5 columnas en escritorio) */}
-        <section className="lg:col-span-5 flex flex-col" aria-labelledby="heading-detalle">
-          <SectionHeading id="heading-detalle">04 / DETALLE OPERATIVO</SectionHeading>
+        <section className="lg:col-span-5 flex flex-col" aria-labelledby="heading-instituciones">
+          <SectionHeading id="heading-instituciones">
+            04 / COMPARATIVA INSTITUCIONAL
+          </SectionHeading>
 
-          <OverdueInstallmentsTable
-            cuotasVencidas={dashboardData.cuotas_vencidas}
-            sucursalId={sucursalId}
-            tableViewMode={tableViewMode}
-            setTableViewMode={setTableViewMode}
-            sortBy={sortBy}
-            setSortBy={setSortBy}
-            selectedTipoFilter={selectedTipoFilter}
-            setSelectedTipoFilter={setSelectedTipoFilter}
+          <InstitutionRankingTable
+            instituciones={data.instituciones}
+            trimestre={data.trimestreInstituciones}
+            limitado={data.limitadoInstituciones}
+            totalDevueltos={data.totalDevueltosInstituciones}
+            nota={data.notaInstituciones}
+            fuente={data.fuenteInstituciones}
           />
         </section>
       </div>
 
       {/* =====================================================================
-          PIE DE PÁGINA ACADÉMICO (IDÉNTICO AL WIREFRAME DE FIGMA)
+          CONTEXTOS EXTERNOS INDEPENDIENTES (FONACOT Y SNIIV)
+          ===================================================================== */}
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <FonacotContextStrip
+          datos={data.fonacot}
+          trimestre={data.trimestreFonacot}
+          fuente={data.fuenteFonacot}
+        />
+        <SniivContextStrip
+          datos={data.sniiv}
+          anio={data.anioSniiv}
+          fuente={data.fuenteSniiv}
+        />
+      </div>
+
+      {/* =====================================================================
+          PIE INFORMATIVO
           ===================================================================== */}
       <footer className="mt-5 pt-3 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[11px] text-slate-400 font-medium">
         <div>
-          WIREFRAME ACADÉMICO · Datos y valores ilustrativos, no registros reales · Versión 12/11/2026
+          Datos oficiales CNBV · FONACOT · SNIIV · Contrato API 1.0.0 · Corte {data.periodo}
         </div>
         <div>
-          Equipo &ldquo;Los Menchos Victoria&rdquo; · PostgreSQL 15 + FastAPI + React &amp; Recharts
+          Equipo &ldquo;Los Menchos Victoria&rdquo; · PostgreSQL + FastAPI + React &amp; Recharts
         </div>
       </footer>
     </DashboardFrame>
