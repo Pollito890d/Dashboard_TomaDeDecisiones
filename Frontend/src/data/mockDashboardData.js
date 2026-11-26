@@ -463,24 +463,17 @@ export const CUOTAS_VENCIDAS_DATA = [
 ];
 
 /**
- * Obtiene los datos del dashboard aplicando los filtros globales de período y sucursal.
- * Intenta consultar la API FastAPI si está configurada en VITE_API_URL; si no está activa,
- * responde con el modelo de datos sintético validado.
+ * Construye el payload heredado del wireframe aplicando los filtros globales de
+ * período y sucursal sobre los datos sintéticos existentes.
+ *
+ * NOTA TÉCNICA (paso 23): esta función conserva únicamente la construcción de datos
+ * que antes formaba parte de `fetchDashboardData`. La responsabilidad HTTP se trasladó
+ * a `services/dashboardApi.js`, que es el único punto de ejecución de `fetch`.
+ * El mock y su fallback son comportamiento heredado de esta etapa intermedia: NO
+ * representan información real y deberán retirarse durante el paso 25, cuando la
+ * interfaz se conecte al contrato 1.0.0 de FastAPI.
  */
-export async function fetchDashboardData({ periodoId = '8w', sucursalId = 'ALL' }) {
-  const apiUrl = import.meta.env.VITE_API_URL;
-
-  if (apiUrl) {
-    try {
-      const res = await fetch(`${apiUrl}/api/dashboard?periodo=${periodoId}&sucursal=${sucursalId}`);
-      if (res.ok) {
-        return await res.json();
-      }
-    } catch {
-      // Fallback silencioso a datos sintéticos locales cuando el backend FastAPI aún no se levanta
-    }
-  }
-
+export function buildDashboardMockData({ periodoId = '8w', sucursalId = 'ALL' } = {}) {
   const branchData = DATA_BY_BRANCH[sucursalId] || DATA_BY_BRANCH.ALL;
   const periodoObj = PERIODOS.find((p) => p.id === periodoId) || PERIODOS[0];
 
