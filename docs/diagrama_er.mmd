@@ -1,0 +1,157 @@
+erDiagram
+    archivo_fuente ||--o{ ejecucion_archivo : insumo
+    ejecucion_etl ||--o{ ejecucion_archivo : registra
+    archivo_fuente ||--o{ dim_concepto_cnbv : define
+    dim_mes ||--o{ hecho_cnbv_sector_mes : periodo
+    dim_concepto_cnbv ||--o{ hecho_cnbv_sector_mes : concepto_y_archivo
+    ejecucion_archivo ||--o{ hecho_cnbv_sector_mes : procedencia
+    dim_mes ||--o{ hecho_cnbv_institucion_trim : cierre
+    dim_institucion ||--o{ hecho_cnbv_institucion_trim : sociedad
+    ejecucion_archivo ||--o{ hecho_cnbv_institucion_trim : procedencia
+    dim_mes ||--o{ hecho_cnbv_total_trim : cierre
+    ejecucion_archivo ||--o{ hecho_cnbv_total_trim : procedencia
+    ejecucion_etl ||--o{ hecho_fonacot_mes : ejecucion
+    ejecucion_archivo o|--o{ hecho_fonacot_mes : archivo_creditos
+    ejecucion_archivo o|--o{ hecho_fonacot_mes : archivo_monto
+    dim_mes ||--o{ hecho_fonacot_mes : periodo
+    dim_ambito_fonacot ||--o{ hecho_fonacot_mes : ambito
+    dim_genero_fonacot ||--o{ hecho_fonacot_mes : genero
+    dim_mes ||--o{ hecho_sniiv_mes : periodo
+    ejecucion_archivo ||--o{ hecho_sniiv_mes : procedencia
+
+    archivo_fuente {
+        bigint archivo_id PK
+        text fuente
+        text ruta
+        text url
+        char sha256
+        bigint tamano_bytes
+        timestamptz descargado_en
+        date periodo_desde
+        date periodo_hasta
+        text rol
+    }
+    ejecucion_etl {
+        bigint ejecucion_id PK
+        timestamptz iniciada_en
+        timestamptz terminada_en
+        text estado
+        text version_proceso
+        text observaciones
+    }
+    ejecucion_archivo {
+        bigint ejecucion_id PK,FK
+        bigint archivo_id PK,FK
+        text funcion
+        boolean hash_verificado
+    }
+    dim_mes {
+        date mes_id PK
+    }
+    dim_institucion {
+        bigint institucion_id PK
+        char clave_seis UK
+        text clave_boletin
+        text clave_catalogo
+        text nombre
+    }
+    dim_concepto_cnbv {
+        bigint concepto_id PK
+        bigint archivo_id FK
+        text hoja
+        integer fila_series
+        text codigo_original
+        text nombre
+        text naturaleza
+        text unidad_origen
+        text unidad_normalizada
+    }
+    dim_ambito_fonacot {
+        bigint ambito_id PK
+        text tipo
+        text nombre_canonico
+    }
+    dim_genero_fonacot {
+        bigint genero_id PK
+        text etiqueta UK
+    }
+    hecho_cnbv_sector_mes {
+        bigint sector_mes_id PK
+        bigint ejecucion_id FK
+        bigint archivo_id FK
+        date mes_id FK
+        bigint concepto_id FK
+        numeric valor
+    }
+    hecho_cnbv_institucion_trim {
+        bigint institucion_trim_id PK
+        bigint ejecucion_id FK
+        bigint archivo_id FK
+        date mes_id FK
+        bigint institucion_id FK
+        text estado_reporte
+        bigint socios
+        bigint sucursales
+        numeric activo_mxn
+        numeric disponibilidades_mxn
+        numeric cartera_vigente_mxn
+        numeric cartera_vencida_mxn
+        numeric estimacion_mxn
+        numeric captacion_total_mxn
+        numeric captacion_tradicional_mxn
+        numeric ingresos_intereses_trim_mxn
+        numeric gastos_intereses_trim_mxn
+        numeric imor_pct
+        numeric nicap_pct
+        numeric participacion_activo_pct
+        text categoria_nicap
+        numeric tasa_activa_pct
+        numeric tasa_pasiva_total_pct
+        numeric tasa_pasiva_tradicional_pct
+    }
+    hecho_cnbv_total_trim {
+        bigint total_trim_id PK
+        bigint ejecucion_id FK
+        bigint archivo_id FK
+        date mes_id FK
+        numeric activo_mxn
+        numeric cartera_vigente_mxn
+        numeric captacion_total_mxn
+        numeric imor_pct
+        numeric icor_pct
+        numeric nicap_pct
+        numeric roa_pct
+    }
+    hecho_fonacot_mes {
+        bigint fonacot_mes_id PK
+        bigint ejecucion_id FK
+        bigint archivo_creditos_id FK
+        bigint archivo_monto_id FK
+        date mes_id FK
+        bigint ambito_id FK
+        bigint genero_id FK
+        text etiqueta_creditos_original
+        text etiqueta_monto_original
+        bigint creditos
+        numeric monto_mxn
+    }
+    hecho_sniiv_mes {
+        bigint sniiv_mes_id PK
+        bigint ejecucion_id FK
+        bigint archivo_id FK
+        date mes_id FK
+        text cve_ent
+        text cve_mun
+        text entidad
+        text municipio
+        text organismo
+        text modalidad
+        text destino
+        text tipo
+        text sexo
+        text edad_rango
+        text ingresos_rango
+        text vivienda_valor
+        bigint acciones
+        numeric monto_mxn
+    }

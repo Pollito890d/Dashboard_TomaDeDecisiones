@@ -2,55 +2,92 @@
 
 ## Objetivo
 
-Construir un tablero gerencial para el análisis de liquidez, cartera, recuperación y contexto externo de una caja de ahorro y préstamo, utilizando **exclusivamente datos abiertos reales** de **CNBV**, **FONACOT** y **SNIIV**.
+Construir un tablero gerencial para el análisis de liquidez, cartera, recuperación y contexto externo de una caja de ahorro y préstamo, utilizando **exclusivamente datos abiertos reales** de **CNBV**, **FONACOT** y **SNIIV**. No se generan datos sintéticos nuevos.
 
-El repositorio contiene actualmente un frontend funcional con datos ilustrativos heredados del wireframe académico. Esos datos se conservan solo como línea base (ver [`docs/auditoria.md`](docs/auditoria.md)) y deberán sustituirse por información real en los siguientes pasos. **No se generan datos sintéticos nuevos.**
+El frontend existente conserva sus datos ilustrativos heredados del wireframe académico solo como línea base ([`docs/auditoria.md`](docs/auditoria.md)). La integración de esos datos reales en la interfaz queda para una fase posterior; este repositorio ya cuenta con ETL, esquema, carga PostgreSQL, vistas y KPIs validados.
 
-## Arquitectura prevista
+## Arquitectura implementada
 
 ```
 Fuentes abiertas (CNBV · FONACOT · SNIIV)
-        │
-        ▼
-   ETL/  (descarga, validación y transformación con Python)
-        │
-        ▼
- data/raw/<fuente>/  →  data/processed/
-        │
-        ▼
- Database/  (esquema y migraciones PostgreSQL)
-        │
-        ▼
- Backend/   (API FastAPI: GET /api/dashboard)
-        │  JSON: resumen, evolución, gráficas, tabla y comparativa
-        ▼
- Frontend/  (React + Vite + Tailwind + Recharts)
+         │
+         ▼
+    ETL/  (extracción, validación y transformación con Python)
+         │  data/raw/<fuente>/  →  data/processed/
+         ▼
+  Database/  (esquema, vistas y validación PostgreSQL)
+         │
+         ▼
+  Backend/   (API FastAPI: pendiente)
+         │
+         ▼
+  Frontend/  (React + Vite + Tailwind + Recharts; aún con mock)
 ```
 
-El contrato previsto y el mecanismo de fallback actual están documentados en [`docs/auditoria.md`](docs/auditoria.md). Las carpetas `Backend/`, `Database/`, `ETL/` y `scripts/` son andamiaje: **todavía no contienen implementación**.
+Los contratos y la línea base están documentados en [`docs/auditoria.md`](docs/auditoria.md). El catálogo definitivo de indicadores está en [`docs/catalogo_kpis.md`](docs/catalogo_kpis.md).
 
 ## Estructura de carpetas
 
 ```
 .
-├── Backend/            API FastAPI (pendiente de implementar)
+├── Backend/            API FastAPI (pendiente)
 │   └── .env.example    Plantilla de configuración, sin credenciales reales
-├── Database/           Esquema/migraciones PostgreSQL (pendiente)
-├── ETL/                Extracción y transformación de datos abiertos (pendiente)
-├── scripts/            Utilidades de ejecución y mantenimiento (pendiente)
+├── Database/
+│   ├── 01_schema.sql              Esquema de referencia (sin cambios)
+│   ├── 04_validation.sql          Validación atómica de Fase IV
+│   ├── tests/validacion_kpis.sql  Suite SQL asertiva de KPIs
+│   └── views/                     14 vistas base y de KPIs
+├── ETL/                ETL local, cargador PostgreSQL y pruebas
+├── scripts/            run_sql_docker.py (ejecutor SQL en Windows)
 ├── data/
-│   ├── raw/
-│   │   ├── cnbv/       Archivos originales de CNBV
-│   │   ├── fonacot/    Archivos originales de FONACOT
-│   │   └── sniiv/      Archivos originales de SNIIV
-│   └── processed/      Salidas normalizadas listas para cargar
-├── docs/
-│   └── auditoria.md    Línea base técnica y funcional (paso 01)
-├── Frontend/           Aplicación React existente
+│   ├── raw/            Originales verificados (19 archivos, no modificados)
+│   └── processed/      Salidas normalizadas y manifiesto determinista
+├── docs/               Auditoría, catálogo, conciliación y validación
+├── Frontend/           Aplicación React existente (sin cambios)
 └── .gitignore          Reglas de seguridad, temporales y artefactos
 ```
 
-Las carpetas vacías incluyen `.gitkeep` para preservar su estructura en Git. Los archivos `.env.example` son plantillas seguras; los archivos `.env` reales están ignorados.
+Los archivos `.env` reales están ignorados. Ninguna credencial se guarda en el repositorio ni se imprime al ejecutar los comandos.
+
+## Ejecución del ETL
+
+Requisitos: Python 3 con entorno `.venv` y los 19 originales verificados en `data/raw/`.
+
+Modo local (no requiere PostgreSQL):
+
+```powershell
+.\.venv\Scripts\python.exe ETL\run_etl.py
+.\.venv\Scripts\python.exe ETL\run_etl.py --fuente cnbv
+```
+
+El modo local publica salidas en `data/processed/` solo si todas las validaciones pasan. Las advertencias esperadas por redondeo (`186` importes, `1` y `3,655` porcentajes) se documentan en [`docs/etl_calidad.md`](docs/etl_calidad.md).
+
+Carga PostgreSQL (exige las tres fuentes):
+
+```powershell
+.\.venv\Scripts\python.exe ETL\run_etl.py --cargar
+```
+
+`--cargar` delega en `ETL/load_facts.py`: una sola transacción, 19 filas de trazabilidad, cinco tablas de hechos, FK y precisión verificadas, idempotencia por SHA-256 y rollback ante cualquier error. Sin `--cargar` no se abre conexión a la base.
+
+## Validación en Windows
+
+No hay `psql` instalado en el host. El único ejecutor SQL es:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_sql_docker.py Database/04_validation.sql
+.\.venv\Scripts\python.exe scripts\run_sql_docker.py Database/tests/validacion_kpis.sql
+```
+
+El script valida `Backend/.env` contra el destino local y ejecuta el SQL dentro del contenedor Docker `dashboard-postgres`. Las suites fallan con `RAISE EXCEPTION` si faltan datos o si una diferencia excede la tolerancia.
+
+Pruebas Python:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest ETL/tests -q -s
+```
+
+Resultado real de la ejecución final: `28 passed in 85.05s`; validación Fase IV `VALIDACION_FASE_IV_OK`; suite de KPIs `VALIDACION_KPIS_ASERTIVA_OK`; ejecución activa `6`.
 
 ## Ejecución del frontend
 
@@ -62,28 +99,22 @@ npm ci
 npm run dev
 ```
 
-Abrir <http://localhost:5173>. El servidor está configurado en `vite.config.js` con puerto 5173 y sin apertura automática de navegador.
-
-Compilación de producción y vista previa:
+Abrir <http://localhost:5173>. Compilación de producción y vista previa:
 
 ```bash
 npm run build      # genera Frontend/dist/
 npm run preview    # sirve la compilación generada
 ```
 
-### Conexión al backend (cuando exista)
-
-```bash
-# Unix / macOS
-cp Frontend/.env.example Frontend/.env
-# Windows (PowerShell)
-copy Frontend\.env.example Frontend\.env
-```
-
-Editar `VITE_API_URL` en `Frontend/.env` con la URL base de la API FastAPI. Mientras no esté disponible, el adaptador actual cae silenciosamente a los datos ilustrativos incluidos en `Frontend/src/data/mockDashboardData.js`.
+Mientras no exista la API, el adaptador actual cae a los datos ilustrativos de `Frontend/src/data/mockDashboardData.js`. No se modificó `Frontend/`.
 
 ## Estado del proyecto
 
-- Paso 01 completado: auditoría del repositorio en `docs/auditoria.md`.
-- Paso 02 completado: organización de carpetas, `.gitignore`, plantillas de entorno y este README.
-- Pendiente: implementación de ETL, PostgreSQL y FastAPI con datos abiertos reales.
+- Pasos 01–05: auditoría, organización, catálogo definitivo de KPIs y propuesta de visualización.
+- Pasos 06–11: esquema, catálogos, perfilado, conciliación y calidad del ETL.
+- Pasos 12–14: ETL local con validación asertiva y manifiesto determinista.
+- Pasos 15–17: integración PostgreSQL, 14 vistas/KPIs y validación con evidencia real.
+
+Detalle de la integración y las pruebas: [`docs/etl_integracion_pendiente.md`](docs/etl_integracion_pendiente.md) y [`docs/validacion_kpis.md`](docs/validacion_kpis.md).
+
+Pendiente para una fase posterior: API FastAPI y sustitución del mock del frontend por los KPIs validados. No se inició esa fase.

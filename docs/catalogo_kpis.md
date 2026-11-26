@@ -95,7 +95,8 @@ Convención: `v(fila)` = valor de la fila en la columna del corte; `prom12(fila)
 - **Interpretación:** tasa implícita cobrada sobre saldos vigentes; se compara con KPI-06 para obtener el spread (KPI-05 − KPI-06).
 - **Nulos:** ninguno en 2025. La ventana requiere 12 observaciones; antes de completarse, no se calcula. Si `prom12(13)=0`, no se calcula.
 - **Umbral:** `observado_2025`: mín 18.142606%, mediana 18.218037%, máx 18.248535%. Sin umbral regulatorio.
-- **Ejemplo (2025-03):** `prom12(13) = 154,141.5972051667`; `28,005.701105 / 154,141.5972051667 × 100 = 18.1688146566%`, idéntico a la fila 217. El spread mensual resultante es `12.3665952222 pp`; rango observado del spread: 12.329113–12.958497 pp, mediana 12.538766 pp. Diciembre: `18.2304798424%`, también idéntico al publicado.
+- **Ejemplo (2025-03):** `prom12(13) = 154,141.5972051667`; `28,005.701105 / 154,141.5972051667 × 100 = 18.1688146566%`, idéntico a la fila 217. El spread mensual resultante es `12.3665952222 pp`; rango observado del spread: 12.329113–12.958497 pp, mediana 12.538766 pp.
+- **Ejemplo (2025-12):** `prom12(13) = 167,139.47947308333333` millones (`167,139,479,473.08333333 MXN`); `30,455.650910 / 167,139.47947308333333 × 100 = 18.2304798424%`, idéntico al publicado. El valor anterior `167,058.966574750000` millones era incorrecto.
 
 ### KPI-06 · Tasa implícita pasiva
 
@@ -108,7 +109,8 @@ Convención: `v(fila)` = valor de la fila en la columna del corte; `prom12(fila)
 - **Interpretación:** costo implícito de los recursos captados; junto con KPI-05 forma el margen de intermediación.
 - **Nulos:** misma regla que KPI-05. Sin valores faltantes en 2025.
 - **Umbral:** `observado_2025`: mín 5.271982%, mediana 5.679272%, máx 5.845541%. Sin umbral regulatorio.
-- **Ejemplo (2025-03):** `prom12(35) = 219,038.2759669167`; `12,709.081417 / 219,038.2759669167 × 100 = 5.8022194344%`, idéntico a la fila 224. Diciembre: `5.2719823640%`, idéntico al publicado.
+- **Ejemplo (2025-03):** `prom12(35) = 219,038.2759669167`; `12,709.081417 / 219,038.2759669167 × 100 = 5.8022194344%`, idéntico a la fila 224.
+- **Ejemplo (2025-12):** `prom12(35) = 241,771.56585250000000` millones (`241,771,565,852.50000000 MXN`); `12,802.380479 / 241,771.56585250000000 × 100 = 5.2719823640%`, idéntico al publicado. El valor anterior `242,838.125926166667` millones era incorrecto.
 - **Variante institucional (no mezclar):** en `TI!C169:C171` la nota define las tasas como «intereses del trimestre actual anualizados / promedio de los dos últimos trimestres». Q1: `TI!G9 = 17.9895392192%` (activa), `TI!K9 = 5.5825586747%` (captación total) y `TI!O9 = 5.5608803563%` (captación tradicional). Q4: `18.5386640823%`, `4.8817553140%` y `4.8677370319%`.
 
 ### KPI-07 · Capital contable / Activo total
@@ -134,7 +136,8 @@ Convención: `v(fila)` = valor de la fila en la columna del corte; `prom12(fila)
 - **Interpretación:** eficiencia del activo en la generación de resultado; caídas sostenidas se leen junto con IMOR y tasa activa.
 - **Nulos:** misma regla de ventana que KPI-05; sin faltantes en 2025.
 - **Umbral:** `observado_2025`: mín 2.153658%, mediana 2.333860%, máx 2.566138%. Sin umbral regulatorio.
-- **Ejemplo (2025-03):** `7,095.199091 / 278,842.0815295833 × 100 = 2.5445223519%`, idéntico a la fila 196. Boletín Q1 `Indicadores!F33 = 2.5428171835%`. Diciembre: `2.1536581163%` en `Series` vs `2.1540614102%` en boletín.
+- **Ejemplo (2025-03):** `7,095.199091 / 278,842.0815295833 × 100 = 2.5445223519%`, idéntico a la fila 196. Boletín Q1 `Indicadores!F33 = 2.5428171835%`.
+- **Ejemplo (2025-12):** `prom12(5) = 305,801.65766500000000` millones (`305,801,657,665.00000000 MXN`); `6,646.831648 / 305,801.65766500000000 × 100 = 2.1536581163%` en `Series` vs `2.1540614102%` en boletín. El valor anterior `308,629.837937000000` millones era incorrecto.
 
 ### KPI-09 · Índice colocación / captación
 
@@ -151,6 +154,7 @@ Convención: `v(fila)` = valor de la fila en la columna del corte; `prom12(fila)
 - **Umbral:** `observado_2025` para la variante sectorial: mín 68.540369%, mediana 69.138577%, máx 69.734382%. La meta `80%` del mock se descarta por carecer de fuente.
 - **Ejemplos:**
   - Sectorial 2025-03: `160,439.159453 / 232,895.409502 × 100 = 68.8889316436%`.
+  - Sectorial 2025-12: `69.2030772470%` (cálculo SQL verificado en `v_kpis_cnbv_sector_mes`; el valor anterior `69.2030772471%` estaba desactualizado).
   - Institucional Q1: `160,349,703.595 / 233,618,624.338 × 100 = 68.63738028%` (miles cancelados en el cociente).
   - Institucional Q4: `176,510,274.039 / 256,086,200.564 × 100 = 68.92611693%`.
 
@@ -166,7 +170,8 @@ Convención: `v(fila)` = valor de la fila en la columna del corte; `prom12(fila)
 - **Tratamiento especial:** la nota `Series!C236` advierte que el total de socios puede no coincidir con la suma de componentes por calidad de envío. En 2025-03, `v(202)=9,545,210` mientras que `v(203)+v(204)=9,543,178`; el denominador de esta métrica es la suma de componentes, no `v(202)`.
 - **Nulos:** ninguno en 2025. Si la suma es cero, no se calcula.
 - **Umbral:** `sin_umbral`; rango observado 2025: 54.144377%–54.288636%, mediana 54.199434%.
-- **Ejemplo (2025-03):** `5,171,225 / (5,171,225 + 4,371,953) × 100 = 54.1876615945%`. Diciembre: `54.2112064685%`.
+- **Ejemplo (2025-03):** `5,171,225 / (5,171,225 + 4,371,953) × 100 = 54.1876615945%`.
+- **Ejemplo (2025-12):** `5,371,242 / (5,371,242 + 4,536,750) × 100 = 54.2112064685%` (verificado en PostgreSQL; el valor anterior `5,375,834 / 4,540,628` era incorrecto).
 
 ### M-02 · Participación por activo de cada institución
 
@@ -209,7 +214,7 @@ Convención: `v(fila)` = valor de la fila en la columna del corte; `prom12(fila)
 - **Filtros:** ninguno para el total nacional; los cortes por entidad, sexo u organismo son dimensiones del propio archivo.
 - **Nulos y aclaración frente al perfilado:** `docs/perfil_datos.md` reporta **399 registros (filas) con `sexo` nulo**; al agregar medidas, esas 399 filas suman **4 acciones y 265,488,266.35 pesos**. No hay contradicción: una cifra cuenta **filas** y la otra **acciones**. Se conservan en los totales generales (`998,745` acciones, `617,246,458,236.39` pesos) y se excluyen solo del denominador de género (`sexo ∈ {1,2}`). No se imputan a hombre o mujer.
 - **Umbral:** `sin_umbral`.
-- **Ejemplo reproducible:** 325,649 filas; 998,745 acciones; 617,246,458,236.39 pesos; promedio 618,022.075942 pesos por acción. Mujeres: 452,066 acciones (45.263587%) y 248,215,934,996.93 pesos (40.230728%). Hombres: 546,675 acciones y 368,765,034,973.11 pesos. INFONAVIT: 666,957 acciones (66.779508%).
+- **Ejemplo reproducible:** 325,649 filas; 998,745 acciones; 617,246,458,236.39 pesos; promedio 618,022.075942 pesos por acción. Mujeres: 452,066 acciones (`452,066 / 998,741 × 100 = 45.2635868559%`) y 248,215,934,996.93 pesos (`40.2307278633%`). Hombres: 546,675 acciones y 368,765,034,973.11 pesos. INFONAVIT: 666,957 acciones (66.7795082829%). Los valores anteriores `45.263587%` y `40.230728%` se conservan solo como redondeo a seis decimales; la validación SQL usa los valores completos.
 
 ### 3.1 Cobertura institucional por cooperativa (boletines 2025)
 
@@ -228,9 +233,11 @@ Se verificaron los cuatro boletines (`202503`, `202506`, `202509`, `202512`). El
 | Captación total | **Publicado** | `TI`, `Captación total`, fecha actual | `I10` = 95,561,938.234 ($95,561,938,234) | `I11` = 106,734,134.065 ($106,734,134,065) |
 | Captación tradicional | **Publicado** | `TI`, `Captación tradicional`, fecha actual; también `EF` fila 37 | `M10` = 95,561,481.334 ($95,561,481,334) | `M11` = 106,733,734.542 ($106,733,734,542) |
 | Tasas implícitas | **Publicadas** | `TI`, columnas `Tasa implícita de cartera vigente`, `de captación total` y `de captación tradicional` | `G10`=17.62499647%, `K10`=6.57831861%, `O10`=6.57834283% | `G11`=18.22275839%, `K11`=5.50654845%, `O11`=5.50657738% |
-| Colocación / captación | **Derivado, no publicado** | `TI`: cartera vigente ÷ captación total | `E10/I10` = 61.50923399% | `E11/I11` = 62.93319802% |
-| ICOR | **Derivado, no publicado** | `EF` fila 24 `Estimación preventiva para riesgos crediticios` ÷ cartera vencida (`Instituciones (2)` o `EF` fila 20) | `abs(E24)/K9` = `2,902,114.622/1,946,111.129×100` = 149.12378737% | `abs(E24)/K10` = `3,089,756.405/1,943,667.351×100` = 158.96528814% |
+| Colocación / captación | **Derivado, no publicado** | `TI`: cartera vigente ÷ captación total | `E10/I10` = 61.50923399% (SQL: `61.5092339861%`) | `E11/I11` = 62.93319802% (SQL: `62.9331980162%`) |
+| ICOR | **Derivado, no publicado** | `EF` fila 24 `Estimación preventiva para riesgos crediticios` ÷ cartera vencida (`Instituciones (2)` o `EF` fila 20) | `abs(E24)/K9` = `2,902,114.622/1,946,111.129×100` = 149.12378737% (SQL: `149.1237873703%`) | `abs(E24)/K10` = `3,089,756.405/1,943,667.351×100` = 158.96528814% (SQL: `158.9652881400%`) |
 | Liquidez del KPI-03 | **No reproducible por cooperativa** | `EF` tiene componentes (filas 13–15 y 37–43), pero no los conceptos `Activos líquidos de corto plazo` / `Pasivos de corto plazo` ni el corte ≤30 días de `Series!C233` | — | — |
+
+Los cuatro derivados institucionales se validan contra los valores redondeados del catálogo con tolerancia `1e-8 pp`; la diferencia máxima observada en PostgreSQL fue `0.0000000076 pp`.
 
 Verificaciones del ejemplo Q1:
 
@@ -336,7 +343,7 @@ act  = v(145) / prom(13) * 100             # 18.1688146566 ; publicado fila 217
 pas  = v(153) / prom(35) * 100             # 5.8022194344 ; publicado fila 224
 ```
 
-Para 2025-03 resulta `prom(13)=154,141.5972051667`, `prom(35)=219,038.2759669167` y `prom(5)=278,842.0815295833`.
+Para 2025-03 resulta `prom(13)=154,141.5972051667`, `prom(35)=219,038.2759669167` y `prom(5)=278,842.0815295833`. Para 2025-12, cargados y validados en PostgreSQL: `prom(13)=167,139.47947308333333`, `prom(35)=241,771.56585250000000` y `prom(5)=305,801.65766500000000` millones de pesos.
 
 Resumen de verificación, 2025-03 y 2025-12 (todos los valores publicados se reproducen al recomputarlos):
 
@@ -350,7 +357,7 @@ Resumen de verificación, 2025-03 y 2025-12 (todos los valores publicados se rep
 | Tasa pasiva | 5.8022194344% | 5.2719823640% | 5.5825586747% / 4.8817553140% |
 | Capital/Activo | 18.0284996299% | 17.8527845893% | no publicado en `Indicadores` |
 | ROA | 2.5445223519% | 2.1536581163% | 2.5428171835% / 2.1540614102% |
-| Colocación/captación | 68.8889316436% | no mostrado aquí | 68.63738028% / 68.92611693% |
+| Colocación/captación | 68.8889316436% | 69.2030772470% | 68.63738028% / 68.92611693% |
 
 ---
 
