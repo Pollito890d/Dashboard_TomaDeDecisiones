@@ -9,6 +9,12 @@ from app.schemas.consultas import EjecucionActiva, Fuente, Institucion, Periodo
 from app.services.validadores import validar_anio, validar_limite, validar_opcion
 
 _FUENTES = {"CNBV", "FONACOT", "SNIIV"}
+_FUENTES_PERIODOS = {
+    "cnbv_sectorial",
+    "cnbv_institucional",
+    "fonacot",
+    "sniiv",
+}
 _ROLES = {"hechos", "diccionario", "validacion"}
 
 
@@ -38,13 +44,15 @@ class CatalogosService:
         desde: date | None = None,
         hasta: date | None = None,
         limite: int | None = None,
+        fuente: str | None = None,
     ) -> list[Periodo]:
         validar_anio(anio)
         validar_limite(limite)
+        validar_opcion(fuente, _FUENTES_PERIODOS, "fuente")
         if desde and hasta and desde > hasta:
             raise ValueError("desde no puede ser posterior a hasta.")
         return self._repositorio.periodos(
-            anio=anio, desde=desde, hasta=hasta, limite=limite
+            anio=anio, desde=desde, hasta=hasta, limite=limite, fuente=fuente
         )
 
     def fuentes(

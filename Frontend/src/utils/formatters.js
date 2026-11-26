@@ -91,6 +91,14 @@ export const formatMonthShort = (periodoYm) => {
   return periodo ? `${MESES_CORTOS[periodo.mes - 1]} ${periodo.anio.slice(2)}` : NO_DISPONIBLE;
 };
 
+/** Mes calendario inmediatamente anterior; no busca filas ni imputa datos. */
+export const periodoAnterior = (periodoYm) => {
+  const periodo = parsearPeriodo(periodoYm);
+  if (!periodo) return null;
+  const fecha = new Date(Date.UTC(Number(periodo.anio), periodo.mes - 2, 1));
+  return `${fecha.getUTCFullYear()}-${String(fecha.getUTCMonth() + 1).padStart(2, '0')}`;
+};
+
 export const formatQuarter = (trimestre) => {
   if (typeof trimestre !== 'string' || !/^\d{4}-Q[1-4]$/.test(trimestre)) return NO_DISPONIBLE;
   const [anio, trimestreNumero] = trimestre.split('-');

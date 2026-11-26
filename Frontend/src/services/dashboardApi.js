@@ -1,4 +1,5 @@
-import { INDICADORES_SECTORIALES } from '../constants/dashboardIndicators';
+import { INDICADORES_SECTORIALES } from '../constants/dashboardIndicators.js';
+import { toNumberOrNull } from '../utils/formatters.js';
 
 /**
  * Único punto de comunicación HTTP del frontend (contrato API 1.0.0).
@@ -12,6 +13,12 @@ const CONTRATO_ESPERADO = '1.0.0';
 const LIMITES = Object.freeze({ periodos: 100, fuentes: 100, instituciones: 10 });
 const RE_PERIODO = /^\d{4}-(0[1-9]|1[0-2])$/;
 const RE_TRIMESTRE = /^\d{4}-Q[1-4]$/;
+const MESES_TRIMESTRE = [3, 6, 9, 12];
+const CAMPOS_SERIE_GRAFICA = [
+  'kpi01_imor_pct', 'kpi02_icor_pct', 'kpi03_liquidez_pct', 'kpi04_nicap_pct',
+  'kpi05_tasa_activa_pct', 'kpi06_tasa_pasiva_pct', 'kpi07_capital_activo_pct',
+  'kpi08_roa_pct', 'kpi09_colocacion_captacion_trad_pct',
+];
 
 export class ApiError extends Error {
   constructor(mensaje, { status = null, code = 'API', detail = null, campos = [] } = {}) {
@@ -203,12 +210,26 @@ export function fetchInstituciones({
   });
 }
 
-export function fetchPeriodos({ anio = null, limite = LIMITES.periodos, signal } = {}) {
+export function fetchPeriodos({
+  fuente = null,
+  anio = null,
+  limite = LIMITES.periodos,
+  signal,
+} = {}) {
   return requestJson('/api/periodos', {
-    params: { anio, limite },
+    params: { fuente, anio, limite },
     signal,
     etiqueta: 'el catálogo de períodos',
     validar: (datos) => Array.isArray(datos?.periodos),
+  });
+}
+
+export function fetchCatalogoInstituciones({ signal } = {}) {
+  return requestJson('/api/instituciones/catalogo', {
+    signal,
+    etiqueta: 'el catálogo de cooperativas',
+    validar: (datos) =>
+      Array.isArray(datos?.instituciones) && typeof datos.total === 'number',
   });
 }
 
@@ -277,65 +298,86 @@ const numeroValido = (valor) => {
   return Number.isFinite(numero) ? numero : null;
 };
 
+const unicos = (valores) => [
+  ...new Set(valores.filter((valor) => valor !== null && valor !== undefined && valor !== '')),
+];
+
+const periodosObservados = (filas, clave) =>
+  unicos((filas ?? []).map((fila) => fila?.[clave]))
+    .filter((valor) => RE_PERIODO.test(valor ?? ''))
+    .sort();
+
+const esPeriodoTrimestral = (periodo) => MESES_TRIMESTRE.includes(Number(periodo.slice(5, 7)));
+
 const limiteValido = (valor) => {
   const numero = numeroValido(valor);
   return Number.isInteger(numero) && numero >= 1 && numero <= 100 ? numero : LIMITES.instituciones;
 };
 
 /**
- * Selección inicial: corte efectivo informado por /api/dashboard validado
- * contra /api/periodos; FONACOT y SNIIV se derivan de sus propias respuestas.
- * Nunca se usa la fecha del sistema.
+ * Selección inicial: cada fuente aporta su propio corte observado en la
+ * ejecución activa. Nunca se usa la fecha del sistema ni un año fijo.
  */
-export function construirSeleccionInicial(catalogos = {}, overrides = {}) {
-  const mensuales = (catalogos.periodos?.periodos ?? []).filter((valor) => RE_PERIODO.test(valor));
+export function construirSeleccionInicial(catalogos = {}, overrides = {}, periodos = {}) {
+  const mensuales = periodosObservados(
+    [
+      ...(periodos.cnbv_sectorial?.periodos ?? []).map((valor) => ({ periodo_ym: valor })),
+      ...(catalogos.dashboard?.serie_anual ?? []),
+    ],
+    'periodo_ym',
+  );
   const corteApi = catalogos.dashboard?.periodo_solicitado;
   const periodoApi = RE_PERIODO.test(corteApi ?? '') ? corteApi : null;
   const periodoOverride = RE_PERIODO.test(overrides.periodo ?? '') ? overrides.periodo : null;
   const periodo = periodoOverride
     ?? (mensuales.includes(periodoApi) ? periodoApi : null)
     ?? periodoApi
-    ?? mensuales[0]
+    ?? mensuales[mensuales.length - 1]
     ?? null;
 
   const anioOverride = numeroValido(overrides.anio);
   const anio = anioOverride ?? (periodo ? Number(periodo.slice(0, 4)) : null);
 
-  const mesesTrimestrales = mensuales.filter((valor) =>
-    [3, 6, 9, 12].includes(Number(valor.slice(5, 7))),
-  );
-  const corteTrimestralNatural = periodo
-    ? `${String(anio).padStart(4, '0')}-${String(Math.ceil(Number(periodo.slice(5, 7)) / 3) * 3).padStart(2, '0')}`
+  const cortesInstitucionales = periodosObservados(
+    [
+      ...(periodos.cnbv_institucional?.periodos ?? []).map((valor) => ({ periodo_ym: valor })),
+      ...(catalogos.instituciones?.corte ? [{ periodo_ym: catalogos.instituciones.corte }] : []),
+      ...(catalogos.instituciones?.instituciones ?? []),
+    ],
+    'periodo_ym',
+  ).filter(esPeriodoTrimestral);
+  const corteInstitucionalApi = catalogos.instituciones?.corte;
+  const corteInstitucionalValido = cortesInstitucionales.includes(corteInstitucionalApi)
+    ? corteInstitucionalApi
     : null;
-
-  let periodoInstitucional = RE_PERIODO.test(overrides.periodoInstitucional ?? '')
+  const periodoInstitucionalOverride = RE_PERIODO.test(overrides.periodoInstitucional ?? '')
     ? overrides.periodoInstitucional
     : null;
-  if (!periodoInstitucional) {
-    const delAnio = mesesTrimestrales.filter((valor) => valor.startsWith(String(anio)));
-    periodoInstitucional = (corteTrimestralNatural && mesesTrimestrales.includes(corteTrimestralNatural)
-      ? corteTrimestralNatural
-      : null)
-      ?? delAnio[0]
-      ?? mesesTrimestrales[0]
-      ?? null;
-  }
-
-  const trimestreInstitucional = RE_TRIMESTRE.test(overrides.trimestreInstitucional ?? '')
+  const trimestreInstitucionalOverride = RE_TRIMESTRE.test(overrides.trimestreInstitucional ?? '')
     ? overrides.trimestreInstitucional
-    : (periodoInstitucional ? trimestreDePeriodo(periodoInstitucional) : null);
+    : null;
+  let periodoInstitucional = periodoInstitucionalOverride
+    ?? corteInstitucionalValido
+    ?? (trimestreInstitucionalOverride ? periodoDeTrimestre(trimestreInstitucionalOverride) : null)
+    ?? cortesInstitucionales[cortesInstitucionales.length - 1]
+    ?? null;
+
+  const trimestreInstitucional = trimestreInstitucionalOverride
+    ?? (RE_TRIMESTRE.test(catalogos.instituciones?.trimestre ?? '')
+      ? catalogos.instituciones.trimestre
+      : null)
+    ?? (periodoInstitucional ? trimestreDePeriodo(periodoInstitucional) : null);
   if (!periodoInstitucional && trimestreInstitucional) {
     const derivado = periodoDeTrimestre(trimestreInstitucional);
-    if (mensuales.includes(derivado)) periodoInstitucional = derivado;
+    if (cortesInstitucionales.includes(derivado)) periodoInstitucional = derivado;
   }
 
   const anioInstitucional = numeroValido(overrides.anioInstitucional)
-    ?? (trimestreInstitucional ? Number(trimestreInstitucional.slice(0, 4)) : anio);
+    ?? (trimestreInstitucional ? Number(trimestreInstitucional.slice(0, 4)) : null)
+    ?? (periodoInstitucional ? Number(periodoInstitucional.slice(0, 4)) : anio);
 
   const filasFonacot = ordenarFonacot(catalogos.fonacot?.resumen_trimestral);
-  const filaFonacotPreferida = [...filasFonacot].reverse().find((fila) => Number(fila.anio) === anio)
-    ?? filasFonacot[filasFonacot.length - 1]
-    ?? null;
+  const filaFonacotPreferida = filasFonacot[filasFonacot.length - 1] ?? null;
   const trimestreFonacot = RE_TRIMESTRE.test(overrides.trimestreFonacot ?? '')
     ? overrides.trimestreFonacot
     : filaFonacotPreferida?.trimestre
@@ -346,7 +388,6 @@ export function construirSeleccionInicial(catalogos = {}, overrides = {}) {
 
   const filasSniiv = ordenarSniiv(catalogos.sniiv?.resumen_anual);
   const anioSniiv = numeroValido(overrides.anioSniiv)
-    ?? numeroValido(filasSniiv.find((fila) => Number(fila.anio) === anio)?.anio)
     ?? numeroValido(filasSniiv[filasSniiv.length - 1]?.anio)
     ?? null;
 
@@ -372,14 +413,21 @@ export function construirSeleccionInicial(catalogos = {}, overrides = {}) {
  * Normalización por fuente (la usan la carga inicial y las cargas parciales)
  * ------------------------------------------------------------------------- */
 
-const sectorSlice = (respuesta, seleccion = {}) => ({
+export const sectorSlice = (respuesta, seleccion = {}) => ({
   contratoVersion: respuesta?.contrato_version ?? null,
   indicadores: INDICADORES_SECTORIALES,
   corte: respuesta?.corte ?? null,
   periodo: respuesta?.periodo_solicitado ?? seleccion.periodo ?? null,
-  serieAnual: [...(respuesta?.serie_anual ?? [])].sort((a, b) =>
-    String(a.periodo_ym).localeCompare(String(b.periodo_ym)),
-  ),
+  // Los Decimal llegan como cadena: las gráficas necesitan números, pero los
+  // nulos oficiales se conservan como null (nunca como cero).
+  serieAnual: [...(respuesta?.serie_anual ?? [])]
+    .map((fila) => ({
+      ...fila,
+      ...Object.fromEntries(
+        CAMPOS_SERIE_GRAFICA.map((campo) => [campo, toNumberOrNull(fila?.[campo])]),
+      ),
+    }))
+    .sort((a, b) => String(a.periodo_ym).localeCompare(String(b.periodo_ym))),
   bandasPorKpi: Object.fromEntries(
     (respuesta?.bandas_2025 ?? []).map((banda) => [banda.kpi_id, banda]),
   ),
@@ -401,12 +449,15 @@ const institucionesSlice = (respuesta, seleccion = {}) => ({
   claveSeisInstituciones: typeof seleccion.claveSeis === 'string' ? seleccion.claveSeis : null,
 });
 
-const fonacotSlice = (respuesta, seleccion = {}) => {
+export const fonacotSlice = (respuesta, seleccion = {}) => {
   const filas = ordenarFonacot(respuesta?.resumen_trimestral);
   const fila = seleccion.trimestreFonacot
     ? filas.find((item) => item.trimestre === seleccion.trimestreFonacot) ?? null
     : filas[filas.length - 1] ?? null;
-  const porAmbito = respuesta?.por_ambito ?? [];
+  const trimestre = fila?.trimestre ?? seleccion.trimestreFonacot ?? null;
+  const porAmbito = (respuesta?.por_ambito ?? []).filter(
+    (item) => !trimestre || item?.trimestre === trimestre,
+  );
   const entidades = [...new Set(
     porAmbito
       .filter((item) => item?.tipo_ambito === 'entidad' && item?.ambito_canonico)
@@ -494,42 +545,83 @@ export async function cargarSniiv(parametros = {}, { signal } = {}) {
  * Catálogos, trazabilidad y carga inicial
  * ------------------------------------------------------------------------- */
 
-const construirCatalogos = ({ periodos, instituciones, fonacot, sniiv }) => {
-  const periodosMensuales = (periodos?.periodos ?? []).map((valor) => ({
+export const construirCatalogos = ({
+  dashboard,
+  instituciones,
+  fonacot,
+  sniiv,
+  periodos = {},
+  catalogoInstituciones = null,
+}) => {
+  const comoFilasPeriodo = (valores) =>
+    (valores ?? []).map((valor) => ({ periodo_ym: valor }));
+
+  // Catálogos observados por fuente; se conserva el derivado de las respuestas
+  // como respaldo si alguna consulta de períodos no estuvo disponible.
+  const mensualesObservados = periodosObservados(
+    comoFilasPeriodo(periodos.cnbv_sectorial?.periodos),
+    'periodo_ym',
+  );
+  const mensuales = mensualesObservados.length
+    ? mensualesObservados
+    : periodosObservados(dashboard?.serie_anual, 'periodo_ym');
+  const periodosMensuales = [...mensuales].reverse().map((valor) => ({
     value: valor,
-    anio: Number(String(valor).slice(0, 4)),
-    mes: Number(String(valor).slice(5, 7)),
+    anio: Number(valor.slice(0, 4)),
+    mes: Number(valor.slice(5, 7)),
   }));
 
-  const periodosInstitucionales = periodosMensuales
-    .filter(({ mes }) => [3, 6, 9, 12].includes(mes))
-    .map(({ value, anio, mes }) => ({
-      value,
-      anio,
-      trimestre: trimestreDePeriodo(value),
-      etiqueta: `T${Math.ceil(mes / 3)} ${anio}`,
+  const cortesObservados = periodosObservados(
+    comoFilasPeriodo(periodos.cnbv_institucional?.periodos),
+    'periodo_ym',
+  ).filter(esPeriodoTrimestral);
+  const cortesRespaldo = [
+    ...(instituciones?.corte ? [{ periodo_ym: instituciones.corte }] : []),
+    ...(instituciones?.instituciones ?? []),
+  ];
+  const cortes = cortesObservados.length
+    ? cortesObservados
+    : periodosObservados(cortesRespaldo, 'periodo_ym').filter(esPeriodoTrimestral);
+  const periodosInstitucionales = [...cortes].reverse().map((valor) => ({
+    value: valor,
+    anio: Number(valor.slice(0, 4)),
+    trimestre: trimestreDePeriodo(valor),
+    etiqueta: `T${Math.ceil(Number(valor.slice(5, 7)) / 3)} ${Number(valor.slice(0, 4))}`,
+  }));
+
+  const trimestresFonacot = unicos([
+    ...periodosObservados(comoFilasPeriodo(periodos.fonacot?.periodos), 'periodo_ym')
+      .map(trimestreDePeriodo),
+    ...ordenarFonacot(fonacot?.resumen_trimestral).map((fila) => fila?.trimestre),
+  ])
+    .sort()
+    .reverse()
+    .map((valor) => ({
+      value: valor,
+      anio: Number(valor.slice(0, 4)),
+      etiqueta: `T${String(valor).slice(-1)} ${Number(valor.slice(0, 4))}`,
     }));
 
-  const trimestresFonacot = ordenarFonacot(fonacot?.resumen_trimestral)
-    .reverse()
-    .filter((fila) => fila?.trimestre)
-    .map((fila) => ({
-      value: fila.trimestre,
-      anio: fila.anio,
-      etiqueta: `T${String(fila.trimestre).slice(-1)} ${fila.anio}`,
-    }));
-
-  const aniosSniiv = ordenarSniiv(sniiv?.resumen_anual)
-    .reverse()
-    .map((fila) => numeroValido(fila?.anio))
-    .filter((anio) => anio !== null)
+  const aniosSniiv = unicos([
+    ...periodosObservados(comoFilasPeriodo(periodos.sniiv?.periodos), 'periodo_ym')
+      .map((valor) => Number(valor.slice(0, 4))),
+    ...ordenarSniiv(sniiv?.resumen_anual).map((fila) => numeroValido(fila?.anio)),
+  ])
+    .sort((a, b) => b - a)
     .map((anio) => ({ value: anio, etiqueta: String(anio) }));
 
-  const institucionesCatalogo = (instituciones?.instituciones ?? []).map((fila) => ({
+  // El selector se llena desde el catálogo completo, nunca desde las filas del
+  // ranking (que están limitadas a 10 y cambian con la ficha seleccionada).
+  const filasCatalogo = catalogoInstituciones?.instituciones ?? [];
+  const usaCatalogoCompleto = filasCatalogo.length > 0;
+  const filasSelector = usaCatalogoCompleto
+    ? filasCatalogo
+    : (instituciones?.instituciones ?? []);
+  const institucionesCatalogo = filasSelector.map((fila) => ({
     claveSeis: fila.clave_seis,
-    nombre: fila.institucion_nombre,
-    corte: instituciones?.corte ?? null,
-    trimestre: instituciones?.trimestre ?? null,
+    nombre: fila.nombre ?? fila.institucion_nombre,
+    corte: usaCatalogoCompleto ? null : (instituciones?.corte ?? null),
+    trimestre: usaCatalogoCompleto ? null : (instituciones?.trimestre ?? null),
   }));
 
   return {
@@ -538,9 +630,14 @@ const construirCatalogos = ({ periodos, instituciones, fonacot, sniiv }) => {
     trimestresFonacot,
     aniosSniiv,
     instituciones: institucionesCatalogo,
-    totalInstitucionesDevueltas: instituciones?.total_devueltos ?? institucionesCatalogo.length,
-    limitadoInstituciones: instituciones?.limitado ?? false,
-    nota: 'Los meses del catálogo no garantizan observaciones: cada fuente valida su propio corte.',
+    totalInstitucionesDevueltas: usaCatalogoCompleto
+      ? (catalogoInstituciones.total ?? filasCatalogo.length)
+      : (instituciones?.total_devueltos ?? institucionesCatalogo.length),
+    limitadoInstituciones: usaCatalogoCompleto
+      ? false
+      : (instituciones?.limitado ?? false),
+    catalogoInstitucionesIndependiente: usaCatalogoCompleto,
+    nota: 'Los períodos provienen de las observaciones de cada fuente en la ejecución activa.',
   };
 };
 
@@ -586,11 +683,16 @@ const construirResumenFuentes = (respuesta) => {
 
 const INDICES = Object.freeze({
   dashboard: 0,
-  periodos: 1,
+  instituciones: 1,
   fonacot: 2,
   sniiv: 3,
   fuentes: 4,
   health: 5,
+  periodosSectorial: 6,
+  periodosInstitucional: 7,
+  periodosFonacot: 8,
+  periodosSniiv: 9,
+  catalogoInstituciones: 10,
 });
 
 /**
@@ -605,11 +707,26 @@ export async function loadDashboardData(parametros = {}, { signal } = {}) {
       anio: seleccionSolicitada.anio ?? null,
       signal,
     }),
-    fetchPeriodos({ signal }),
+    // Sin filtros, cada endpoint devuelve su último corte con observaciones.
+    fetchInstituciones({
+      periodo: seleccionSolicitada.periodoInstitucional ?? null,
+      trimestre: seleccionSolicitada.trimestreInstitucional ?? null,
+      claveSeis: seleccionSolicitada.claveSeis ?? null,
+      anio: seleccionSolicitada.anioInstitucional ?? null,
+      limite: limiteValido(seleccionSolicitada.limiteInstituciones),
+      signal,
+    }),
     fetchFonacot({ signal }),
     fetchSniiv({ signal }),
     fetchFuentes({ signal }),
     fetchHealth({ signal }),
+    // Catálogos de períodos con observaciones, uno por fuente.
+    fetchPeriodos({ fuente: 'cnbv_sectorial', signal }),
+    fetchPeriodos({ fuente: 'cnbv_institucional', signal }),
+    fetchPeriodos({ fuente: 'fonacot', signal }),
+    fetchPeriodos({ fuente: 'sniiv', signal }),
+    // Catálogo completo de cooperativas, independiente del ranking.
+    fetchCatalogoInstituciones({ signal }),
   ]);
 
   const canceladaCatalogos = faseCatalogos.find(
@@ -627,37 +744,41 @@ export async function loadDashboardData(parametros = {}, { signal } = {}) {
   }
 
   const errores = {};
-  ['periodos', 'fonacot', 'sniiv', 'fuentes', 'health'].forEach((clave) => {
-    const resultado = faseCatalogos[INDICES[clave]];
-    if (resultado.status === 'rejected') errores[clave] = mensajeError(resultado.reason);
-  });
+  ['instituciones', 'fonacot', 'sniiv', 'fuentes', 'health', 'catalogoInstituciones'].forEach(
+    (clave) => {
+      const resultado = faseCatalogos[INDICES[clave]];
+      if (resultado.status === 'rejected') errores[clave] = mensajeError(resultado.reason);
+    },
+  );
+  const fallosPeriodos = [
+    'periodosSectorial',
+    'periodosInstitucional',
+    'periodosFonacot',
+    'periodosSniiv',
+  ]
+    .filter((clave) => faseCatalogos[INDICES[clave]].status === 'rejected')
+    .map((clave) => mensajeError(faseCatalogos[INDICES[clave]].reason));
+  if (fallosPeriodos.length) errores.periodos = fallosPeriodos.join('; ');
 
   const dashboard = valor('dashboard');
-  const periodos = valor('periodos');
+  const instituciones = valor('instituciones');
   const fonacotCatalogo = valor('fonacot');
   const sniivCatalogo = valor('sniiv');
   const fuentes = valor('fuentes');
   const health = valor('health');
+  const periodos = {
+    cnbv_sectorial: valor('periodosSectorial'),
+    cnbv_institucional: valor('periodosInstitucional'),
+    fonacot: valor('periodosFonacot'),
+    sniiv: valor('periodosSniiv'),
+  };
+  const catalogoInstituciones = valor('catalogoInstituciones');
 
   const seleccion = construirSeleccionInicial(
-    { dashboard, periodos, fonacot: fonacotCatalogo, sniiv: sniivCatalogo },
+    { dashboard, instituciones, fonacot: fonacotCatalogo, sniiv: sniivCatalogo },
     seleccionSolicitada,
+    periodos,
   );
-
-  let instituciones = null;
-  try {
-    instituciones = await fetchInstituciones({
-      periodo: seleccion.periodoInstitucional,
-      trimestre: seleccion.trimestreInstitucional,
-      claveSeis: seleccion.claveSeis,
-      anio: seleccion.anioInstitucional,
-      limite: seleccion.limiteInstituciones,
-      signal,
-    });
-  } catch (error) {
-    if (esCancelacion(error)) throw error;
-    errores.instituciones = mensajeError(error);
-  }
 
   const sector = sectorSlice(dashboard, seleccion);
   const institucional = institucionesSlice(instituciones, seleccion);
@@ -679,7 +800,14 @@ export async function loadDashboardData(parametros = {}, { signal } = {}) {
     ...institucional,
     ...fonacot,
     ...sniiv,
-    catalogos: construirCatalogos({ periodos, instituciones, fonacot: fonacotCatalogo, sniiv: sniivCatalogo }),
+    catalogos: construirCatalogos({
+      dashboard,
+      instituciones,
+      fonacot: fonacotCatalogo,
+      sniiv: sniivCatalogo,
+      periodos,
+      catalogoInstituciones,
+    }),
     fuentes: construirResumenFuentes(fuentes),
     estadoApi: health
       ? {

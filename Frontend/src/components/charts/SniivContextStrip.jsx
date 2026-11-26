@@ -1,4 +1,3 @@
-import { Building2 } from 'lucide-react';
 import ContextMetric from '../layout/ContextMetric';
 import EstadoSeccion from '../layout/EstadoSeccion';
 import {
@@ -42,18 +41,34 @@ export default function SniivContextStrip({
   const monto = filaEntidad
     ? genero ? null : filaEntidad.monto_total_mxn
     : mujeres ? datos?.monto_mujeres_mxn : hombres ? datos?.monto_hombres_mxn : datos?.m04_monto_total_mxn;
-  const promedio = genero ? null : (filaEntidad?.promedio_por_accion_mxn ?? datos?.m04_promedio_por_accion_mxn);
+  // Con entidad seleccionada solo se usan columnas publicadas en ese renglón:
+  // un nulo estatal se muestra como no disponible, nunca se toma del total nacional.
+  const promedio = genero
+    ? null
+    : filaEntidad
+      ? filaEntidad.promedio_por_accion_mxn
+      : datos?.m04_promedio_por_accion_mxn;
   const participacionAcciones = genero
     ? null
-    : (filaEntidad?.m04_participacion_mujeres_acciones_pct ?? datos?.m04_participacion_mujeres_acciones_pct);
+    : filaEntidad
+      ? filaEntidad.m04_participacion_mujeres_acciones_pct
+      : datos?.m04_participacion_mujeres_acciones_pct;
   const participacionMonto = genero
     ? null
-    : (filaEntidad?.m04_participacion_mujeres_monto_pct ?? datos?.m04_participacion_mujeres_monto_pct);
-  const infonavit = genero ? null : (filaEntidad?.acciones_infonavit ?? datos?.acciones_infonavit);
+    : filaEntidad
+      ? filaEntidad.m04_participacion_mujeres_monto_pct
+      : datos?.m04_participacion_mujeres_monto_pct;
+  const infonavit = genero
+    ? null
+    : filaEntidad
+      ? filaEntidad.acciones_infonavit
+      : datos?.acciones_infonavit;
   const participacionInfonavit = genero
     ? null
-    : (filaEntidad?.m04_participacion_infonavit_acciones_pct ?? datos?.m04_participacion_infonavit_acciones_pct);
-  const sinSexo = filaEntidad?.acciones_sin_sexo ?? datos?.filas_sin_sexo;
+    : filaEntidad
+      ? filaEntidad.m04_participacion_infonavit_acciones_pct
+      : datos?.m04_participacion_infonavit_acciones_pct;
+  const sinSexo = filaEntidad ? filaEntidad.acciones_sin_sexo : datos?.filas_sin_sexo;
 
   const nombreEntidad = entidadSinFila
     ? `sin desglose para ${entidad}`
@@ -62,88 +77,64 @@ export default function SniivContextStrip({
       : 'Total nacional';
   const generoTexto = mujeres ? ' · mujeres' : hombres ? ' · hombres' : '';
 
-  const contenido = (
-    <>
-      {entidadSinFila ? (
-        <div className="text-xs text-slate-500">
-          El desglose oficial no contiene la entidad {entidad} para el año {formatYear(anio)}.
-          No se sustituye por el resumen nacional.
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <ContextMetric etiqueta="Acciones de financiamiento" valor={formatInteger(acciones)} />
-          <ContextMetric etiqueta="Monto total" valor={formatCompactCurrency(monto)} />
-          <ContextMetric etiqueta="Promedio por acción" valor={formatCompactCurrency(promedio)} />
-          <ContextMetric
-            etiqueta="Participación femenina en acciones"
-            valor={formatPercent(participacionAcciones)}
-          />
-          <ContextMetric
-            etiqueta="Participación femenina en monto"
-            valor={formatPercent(participacionMonto)}
-          />
-          <ContextMetric
-            etiqueta="Participación INFONAVIT"
-            valor={formatPercent(participacionInfonavit)}
-            nota={infonavit === null ? 'No disponible para este filtro' : `${formatInteger(infonavit)} acciones`}
-          />
-        </div>
-      )}
-    </>
-  );
-
   return (
-    <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-5 flex flex-col">
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <div className="flex items-center gap-2">
-          <Building2 className="w-4 h-4 text-[#0E7C7B]" aria-hidden="true" />
-          <h3 className="text-[15px] font-bold text-slate-900">
-            Contexto externo · SNIIV (M-04)
-          </h3>
-        </div>
-        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-teal-50 text-[#0E7C7B] whitespace-nowrap">
-          Anual {formatYear(anio)}
-        </span>
-      </div>
-      <p className="text-xs text-slate-500 mb-3">
-        Financiamientos de vivienda · corte anual, no mezclado con las SOCAP
-      </p>
-      <p className="text-[10px] text-slate-400 mb-2">
-        Granularidad: anual · Alcance: {nombreEntidad}{generoTexto} · filtros locales sobre el desglose oficial recibido
-      </p>
-
-      <EstadoSeccion
-        cargando={loading}
-        error={error}
-        onReintentar={onReintentar}
-        mensajeCarga="Consultando el contexto SNIIV…"
-      >
-        {sinDatos && !datos ? (
-          <div className="text-xs text-slate-500">
-            HTTP 200 sin datos: SNIIV no publica información para el año {formatYear(anio)}.
-          </div>
-        ) : datos || entidadSinFila ? (
-          contenido
+    <EstadoSeccion
+      cargando={loading}
+      error={error}
+      onReintentar={onReintentar}
+      mensajeCarga="Consultando el contexto SNIIV…"
+    >
+      {sinDatos && !datos ? (
+        <p className="text-xs text-slate-500">
+          SNIIV no publica información para el año {formatYear(anio)}. No se imputan valores ausentes.
+        </p>
+      ) : datos || entidadSinFila ? (
+        entidadSinFila ? (
+          <p className="text-xs text-slate-500">
+            La fuente no publica desglose para {entidad} en {formatYear(anio)}; no se sustituye por el resumen nacional.
+          </p>
         ) : (
-          <div className="text-xs text-slate-500">{formatNoDisponible()}</div>
-        )}
-      </EstadoSeccion>
+          <>
+            <p className="text-[11px] text-slate-500 mb-2">
+              Alcance: {nombreEntidad}{generoTexto} · {formatYear(anio)}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <ContextMetric etiqueta="Acciones de financiamiento" valor={formatInteger(acciones)} />
+              <ContextMetric etiqueta="Monto total" valor={formatCompactCurrency(monto)} />
+              <ContextMetric
+                etiqueta="Participación femenina en acciones"
+                valor={formatPercent(participacionAcciones)}
+              />
+            </div>
 
-      <div className="mt-auto pt-3 text-[10px] text-slate-400 space-y-1">
-        <div>
-          Cobertura anual disponible: solo 2025 en el contrato vigente; no se muestran años
-          inventados. Las acciones son operaciones de financiamiento, no personas únicas. Las filas
-          sin sexo se conservan en el total y se excluyen solo del denominador de género (
-          {formatInteger(sinSexo)} {filaEntidad ? 'acciones' : 'filas'}).
-        </div>
-        {(genero || entidad) && (
-          <div>
-            Con filtro aplicado, los cocientes, promedios y la participación INFONAVIT se muestran
-            como «No disponible» cuando la respuesta no publica ese desglose específico.
-          </div>
-        )}
-        <div>Fuente: {fuente}</div>
-      </div>
-    </div>
+            <details className="mt-3 text-[11px] text-slate-500">
+              <summary className="cursor-pointer font-semibold text-[#0E7C7B]">
+                Ver métricas adicionales
+              </summary>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-2">
+                <ContextMetric etiqueta="Promedio por acción" valor={formatCompactCurrency(promedio)} />
+                <ContextMetric
+                  etiqueta="Participación femenina en el monto"
+                  valor={formatPercent(participacionMonto)}
+                />
+                <ContextMetric
+                  etiqueta="Participación INFONAVIT"
+                  valor={formatPercent(participacionInfonavit)}
+                  nota={infonavit === null ? 'No disponible para este filtro' : `${formatInteger(infonavit)} acciones`}
+                />
+              </div>
+              <p className="mt-2 text-[10px] text-slate-400">
+                Las acciones son operaciones de financiamiento, no personas únicas. Las filas sin sexo
+                se conservan en el total y se excluyen solo del denominador de género (
+                {formatInteger(sinSexo)} {filaEntidad ? 'acciones' : 'filas'}). Con filtro aplicado, los
+                cocientes no publicados se muestran como «No disponible». Fuente: {fuente}
+              </p>
+            </details>
+          </>
+        )
+      ) : (
+        <p className="text-xs text-slate-500">{formatNoDisponible()}</p>
+      )}
+    </EstadoSeccion>
   );
 }

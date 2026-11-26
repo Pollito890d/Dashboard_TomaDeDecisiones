@@ -1,4 +1,3 @@
-import { Users } from 'lucide-react';
 import ContextMetric from '../layout/ContextMetric';
 import EstadoSeccion from '../layout/EstadoSeccion';
 import {
@@ -44,110 +43,90 @@ export default function FonacotContextStrip({
     : mujeres ? datos?.monto_mujeres_nacional_mxn : hombres ? datos?.monto_hombres_nacional_mxn : datos?.monto_total_nacional_mxn;
 
   // Estas participaciones y el ticket son cocientes calculados por la fuente
-  // para el ámbito completo; no se fabrican versiones filtradas por género.
+  // para el ámbito completo; no se fabrican versiones filtradas por género
+  // ni se sustituye un valor estatal ausente por el agregado nacional.
   const participacionCreditos = genero
     ? null
-    : (filaEntidad?.m03_participacion_femenina_creditos_pct ?? datos?.m03_participacion_femenina_creditos_pct);
+    : filaEntidad
+      ? filaEntidad.m03_participacion_femenina_creditos_pct
+      : datos?.m03_participacion_femenina_creditos_pct;
   const participacionMonto = genero
     ? null
-    : (filaEntidad?.m03_participacion_femenina_monto_pct ?? datos?.m03_participacion_femenina_monto_pct);
+    : filaEntidad
+      ? filaEntidad.m03_participacion_femenina_monto_pct
+      : datos?.m03_participacion_femenina_monto_pct;
   const ticket = genero
     ? null
-    : (filaEntidad?.m03_ticket_promedio_mxn ?? datos?.m03_ticket_promedio_nacional_mxn);
+    : filaEntidad
+      ? filaEntidad.m03_ticket_promedio_mxn
+      : datos?.m03_ticket_promedio_nacional_mxn;
   const appMovil = !filaEntidad && !genero ? datos?.creditos_canal_app_movil : null;
   const appMovilMonto = !filaEntidad && !genero ? datos?.monto_canal_app_movil_mxn : null;
 
   const alcance = entidadSinFila
-    ? `Sin desglose para ${entidad}`
+    ? `sin desglose para ${entidad}`
     : filaEntidad
       ? `Entidad ${filaEntidad.ambito_canonico}`
       : 'Total nacional';
   const generoTexto = mujeres ? ' · mujeres' : hombres ? ' · hombres' : '';
 
-  const contenido = (
-    <>
-      {entidadSinFila ? (
-        <div className="text-xs text-slate-500">
-          El desglose oficial no contiene la entidad {entidad} para el corte {formatQuarter(trimestre)}.
-          No se sustituye por el total nacional.
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <ContextMetric etiqueta="Créditos ejercidos" valor={formatInteger(creditos)} />
-          <ContextMetric etiqueta="Monto total" valor={formatCompactCurrency(monto)} />
-          <ContextMetric
-            etiqueta="Participación femenina en créditos"
-            valor={formatPercent(participacionCreditos)}
-          />
-          <ContextMetric
-            etiqueta="Participación femenina en monto"
-            valor={formatPercent(participacionMonto)}
-          />
-          <ContextMetric etiqueta="Ticket promedio" valor={formatCompactCurrency(ticket)} />
-          <ContextMetric
-            etiqueta="Canal APP MOVIL"
-            valor={formatInteger(appMovil)}
-            nota={appMovil === null
-              ? 'No disponible para este filtro'
-              : formatCompactCurrency(appMovilMonto)}
-          />
-        </div>
-      )}
-    </>
-  );
-
   return (
-    <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-5 flex flex-col">
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <div className="flex items-center gap-2">
-          <Users className="w-4 h-4 text-[#0E7C7B]" aria-hidden="true" />
-          <h3 className="text-[15px] font-bold text-slate-900">
-            Contexto externo · FONACOT (M-03)
-          </h3>
-        </div>
-        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-teal-50 text-[#0E7C7B] whitespace-nowrap">
-          {formatQuarter(trimestre)}
-        </span>
-      </div>
-      <p className="text-xs text-slate-500 mb-3">
-        Crédito al trabajo · universo externo, no atribuible a una cooperativa
-      </p>
-      <p className="text-[10px] text-slate-400 mb-2">
-        Granularidad: trimestral · Alcance: {alcance}{generoTexto} · filtros locales sobre el desglose oficial recibido
-      </p>
-
-      <EstadoSeccion
-        cargando={loading}
-        error={error}
-        onReintentar={onReintentar}
-        mensajeCarga="Consultando el contexto FONACOT…"
-      >
-        {sinDatos && !datos ? (
-          <div className="text-xs text-slate-500">
-            HTTP 200 sin datos: FONACOT no publica información para el corte {formatQuarter(trimestre)}.
+    <EstadoSeccion
+      cargando={loading}
+      error={error}
+      onReintentar={onReintentar}
+      mensajeCarga="Consultando el contexto FONACOT…"
+    >
+      {sinDatos && !datos ? (
+        <p className="text-xs text-slate-500">
+          FONACOT no publica información para el corte {formatQuarter(trimestre)}. No se imputan valores ausentes.
+        </p>
+      ) : entidadSinFila ? (
+        <p className="text-xs text-slate-500">
+          La fuente no publica desglose para {entidad} en {formatQuarter(trimestre)}; no se sustituye por el total nacional.
+        </p>
+      ) : datos ? (
+        <>
+          <p className="text-[11px] text-slate-500 mb-2">
+            Alcance: {alcance}{generoTexto} · {formatQuarter(trimestre)}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <ContextMetric etiqueta="Créditos ejercidos" valor={formatInteger(creditos)} />
+            <ContextMetric etiqueta="Monto total" valor={formatCompactCurrency(monto)} />
+            <ContextMetric
+              etiqueta="Participación femenina en créditos"
+              valor={formatPercent(participacionCreditos)}
+            />
           </div>
-        ) : entidadSinFila ? (
-          contenido
-        ) : datos ? (
-          contenido
-        ) : (
-          <div className="text-xs text-slate-500">{formatNoDisponible()}</div>
-        )}
-      </EstadoSeccion>
 
-      <div className="mt-auto pt-3 text-[10px] text-slate-400 space-y-1">
-        <div>
-          Los créditos contabilizan operaciones, no personas únicas. APP MOVIL es un canal, no una
-          entidad federativa: solo se muestra en el total nacional sin filtro de género.
-        </div>
-        {(genero || entidad) && (
-          <div>
-            Con filtro aplicado, las participaciones, el ticket y el canal APP MOVIL se muestran como
-            «No disponible» cuando la respuesta no publica ese desglose específico.
-          </div>
-        )}
-        <div>Fuente: {fuente}</div>
-      </div>
-    </div>
+          <details className="mt-3 text-[11px] text-slate-500">
+            <summary className="cursor-pointer font-semibold text-[#0E7C7B]">
+              Ver métricas adicionales
+            </summary>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-2">
+              <ContextMetric
+                etiqueta="Participación femenina en el monto"
+                valor={formatPercent(participacionMonto)}
+              />
+              <ContextMetric etiqueta="Ticket promedio" valor={formatCompactCurrency(ticket)} />
+              <ContextMetric
+                etiqueta="Canal móvil (solo total nacional)"
+                valor={formatInteger(appMovil)}
+                nota={appMovil === null
+                  ? 'No disponible para este filtro'
+                  : formatCompactCurrency(appMovilMonto)}
+              />
+            </div>
+            <p className="mt-2 text-[10px] text-slate-400">
+              Los créditos contabilizan operaciones, no personas únicas. APP MÓVIL es un canal, no una
+              entidad. Con filtro aplicado, los cocientes no publicados se muestran como
+              «No disponible». Fuente: {fuente}
+            </p>
+          </details>
+        </>
+      ) : (
+        <p className="text-xs text-slate-500">{formatNoDisponible()}</p>
+      )}
+    </EstadoSeccion>
   );
 }

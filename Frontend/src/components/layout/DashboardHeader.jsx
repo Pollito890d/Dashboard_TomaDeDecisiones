@@ -1,43 +1,41 @@
-import FilterBar from '../filters/FilterBar';
+import { Info } from 'lucide-react';
+import DashboardTabs from './DashboardTabs';
+import { formatMonth } from '../../utils/formatters';
 
-export default function DashboardHeader({
-  seleccion,
-  catalogos,
-  entidadesFonacot,
-  entidadesSniiv,
-  onChange,
-  showContextModal,
-  setShowContextModal,
-  cargando,
-}) {
+/** Identidad, estado general, pestañas y acceso a la guía; sin filtros aquí. */
+export default function DashboardHeader({ tabActiva, onCambiarTab, onAbrirGuia, corte }) {
   return (
-    <header className="flex flex-col gap-4 pb-5 border-b border-slate-200">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+    <header className="pb-4 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-[22px] sm:text-2xl font-extrabold tracking-tight text-slate-900">
-              Caja de Ahorro y Préstamo
-            </h1>
-            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-teal-50 text-[#0E7C7B] border border-teal-200/70">
-              CNBV · FONACOT · SNIIV
-            </span>
-          </div>
-          <p className="text-xs sm:text-[13px] text-slate-500 mt-0.5 font-medium">
-            Información sectorial e institucional · contextos externos · contrato API 1.0.0
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">
+            Caja de Ahorro y Préstamo
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Tablero gerencial con información oficial del sector y sus contextos externos.
           </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {corte && (
+            <span className="text-[11px] font-semibold text-slate-500 bg-white border border-slate-200 rounded-md px-2.5 py-1.5">
+              Corte sectorial: {formatMonth(corte)}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={onAbrirGuia}
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0E7C7B]"
+          >
+            <Info className="w-3.5 h-3.5" aria-hidden="true" />
+            Guía de indicadores
+          </button>
         </div>
       </div>
 
-      <FilterBar
-        seleccion={seleccion}
-        catalogos={catalogos}
-        entidadesFonacot={entidadesFonacot}
-        entidadesSniiv={entidadesSniiv}
-        onChange={onChange}
-        showContextModal={showContextModal}
-        setShowContextModal={setShowContextModal}
-        cargando={cargando}
-      />
+      <div className="mt-4">
+        <DashboardTabs activa={tabActiva} onChange={onCambiarTab} />
+      </div>
     </header>
   );
 }

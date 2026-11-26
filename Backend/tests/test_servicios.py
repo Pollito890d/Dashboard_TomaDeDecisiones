@@ -90,11 +90,19 @@ def test_sniiv_anual_y_entidades(servicios) -> None:
     assert any(fila.cve_ent == "01" for fila in entidades)
 
 
-def test_catalogos_instituciones_periodos_fuentes(servicios) -> None:
+def test_catalogos_instituciones_periodos_fuentes(servicios, sesion) -> None:
     ejecucion = servicios.catalogos.ejecucion_activa()
     assert len(ejecucion) == 1
-    assert ejecucion[0].ejecucion_id == 6
-    assert ejecucion[0].estado == "exitosa"
+    # La ejecución activa se comprueba contra la tabla real, sin id fijo.
+    activa = sesion.execute(
+        text(
+            "SELECT ejecucion_id, estado FROM ejecucion_etl "
+            "WHERE estado = 'exitosa' "
+            "ORDER BY terminada_en DESC NULLS LAST, ejecucion_id DESC LIMIT 1"
+        )
+    ).mappings().one()
+    assert ejecucion[0].ejecucion_id == activa["ejecucion_id"]
+    assert ejecucion[0].estado == activa["estado"] == "exitosa"
 
     periodos = servicios.catalogos.periodos(anio=2025)
     assert len(periodos) == 12

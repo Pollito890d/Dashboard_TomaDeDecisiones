@@ -28,7 +28,10 @@ export default function EstadoSeccion({
     return (
       <div className="rounded-md border border-red-200 bg-red-50 p-5 text-xs text-[#B4472A]" role="alert">
         <p className="font-semibold">No fue posible consultar esta sección.</p>
-        <p className="mt-1">{error}</p>
+        <details className="mt-1">
+          <summary className="cursor-pointer font-semibold">Ver detalle</summary>
+          <p className="mt-1">{error}</p>
+        </details>
         {onReintentar && (
           <div className="mt-3">
             <BotonReintento onClick={onReintentar} etiqueta="Reintentar esta sección" />

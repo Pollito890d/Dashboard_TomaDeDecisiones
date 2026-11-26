@@ -18,9 +18,9 @@ export default function HorizontalBarList({
 
   return (
     <div>
-      <h4 className="text-xs font-medium text-slate-500 mb-3.5">{title}</h4>
+      <h4 className="text-sm font-bold text-slate-900 mb-1.5">{title}</h4>
       {descripcion && (
-        <p className="text-[10px] text-slate-400 -mt-2 mb-3">{descripcion}</p>
+        <p className="text-[10px] text-slate-500 -mt-0.5 mb-3">{descripcion}</p>
       )}
       <div className="space-y-4">
         {items.map((item) => {
@@ -33,7 +33,7 @@ export default function HorizontalBarList({
             <div key={`${item.clave_seis}-${valueKey}`} className="group">
               <div className="flex items-center gap-3">
                 <span
-                  className="w-20 text-xs font-medium text-slate-600 shrink-0 truncate"
+                  className="w-28 sm:w-36 text-xs font-medium text-slate-600 shrink-0 truncate"
                   title={String(etiqueta)}
                 >
                   {etiqueta}

@@ -8,6 +8,18 @@ from sqlalchemy.orm import Session
 from app.repositories.base import agregar_limite, clausula_where, consultar
 from app.schemas.consultas import EjecucionActiva, Fuente, Institucion, Periodo
 
+# Períodos con observaciones de la ejecución activa, uno por fuente observada.
+# SNIIV es anual: se sintetiza el cierre de diciembre solo para el catálogo.
+_PERIODOS_POR_FUENTE = {
+    "cnbv_sectorial": "SELECT mes_id FROM v_kpis_cnbv_sector_mes",
+    "cnbv_institucional": "SELECT mes_id FROM v_kpis_cnbv_institucion_trim",
+    "fonacot": "SELECT mes_id FROM v_fonacot_mes_base",
+    "sniiv": (
+        "SELECT make_date(anio::integer, 12, 1) AS mes_id "
+        "FROM v_kpis_sniiv_anual_resumen"
+    ),
+}
+
 
 class CatalogosRepository:
     def __init__(self, sesion: Session) -> None:
@@ -46,6 +58,7 @@ class CatalogosRepository:
         desde: date | None = None,
         hasta: date | None = None,
         limite: int | None = None,
+        fuente: str | None = None,
     ) -> list[Periodo]:
         filtros: list[str] = []
         parametros: dict[str, Any] = {}
@@ -58,8 +71,15 @@ class CatalogosRepository:
         if hasta is not None:
             filtros.append("mes_id <= :hasta")
             parametros["hasta"] = hasta
+        # Sin `fuente` se conserva el catálogo dim_mes original (contrato 1.0.0).
+        origen = (
+            f"SELECT DISTINCT mes_id FROM ({_PERIODOS_POR_FUENTE[fuente]}) AS observados"
+            if fuente is not None
+            else "SELECT mes_id FROM dim_mes"
+        )
         sql = agregar_limite(
-            f"SELECT * FROM dim_mes{clausula_where(filtros)} ORDER BY mes_id DESC",
+            f"SELECT mes_id FROM ({origen}) AS periodos"
+            f"{clausula_where(filtros)} ORDER BY mes_id DESC",
             limite,
             parametros,
         )

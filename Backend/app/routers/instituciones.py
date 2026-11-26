@@ -16,7 +16,7 @@ from app.routers._comun import (
     validar_periodo,
 )
 from app.schemas.consultas import Periodo
-from app.schemas.respuestas import InstitucionesResponse
+from app.schemas.respuestas import InstitucionesCatalogoResponse, InstitucionesResponse
 from app.services import Servicios
 
 router = APIRouter()
@@ -25,6 +25,29 @@ _NOTA = (
     "KPI-03 no es reproducible por cooperativa: kpi03_liquidez_no_disponible_pct "
     "se devuelve null. Los rankings excluyen valores n.d."
 )
+
+
+@router.get(
+    "/api/instituciones/catalogo",
+    response_model=InstitucionesCatalogoResponse,
+    responses=RESPUESTAS_ERROR,
+    tags=["instituciones"],
+    summary="Catálogo completo de cooperativas SOCAP",
+    description=(
+        "Devuelve todas las cooperativas de `dim_institucion`, sin aplicar el `limite` "
+        "del ranking ni filtrar por corte. Permite conservar las opciones del selector "
+        "aunque el comparativo muestre solo unas cuantas fichas."
+    ),
+)
+def catalogo_instituciones(
+    servicios: Servicios = Depends(get_servicios),
+) -> InstitucionesCatalogoResponse:
+    filas = proteger(lambda: servicios.catalogos.instituciones())
+    return InstitucionesCatalogoResponse(
+        instituciones=filas,
+        total=len(filas),
+        sin_datos=not filas,
+    )
 
 
 @router.get(

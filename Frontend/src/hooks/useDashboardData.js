@@ -7,7 +7,8 @@ import {
   describirError,
   esCancelacion,
   loadDashboardData,
-} from '../services/dashboardApi';
+} from '../services/dashboardApi.js';
+import { crearSecuenciaRespuestas } from '../utils/respuestasRecientes.js';
 
 /**
  * Estado del tablero con actualización independiente por fuente.
@@ -73,6 +74,7 @@ export function useDashboardData(parametros = {}) {
   const [listo, setListo] = useState(false);
   const [estados, setEstados] = useState(estadosIniciales);
   const aplicadas = useRef(null);
+  const secuencia = useRef(crearSecuenciaRespuestas());
 
   /* Carga inicial: una sola vez, salvo reintento explícito de todo. */
   useEffect(() => {
@@ -144,6 +146,8 @@ export function useDashboardData(parametros = {}) {
 
     const controlador = new AbortController();
     let activo = true;
+    const turno = secuencia.current.siguiente();
+    const firmasSolicitadas = firmas;
 
     setEstados((previo) => {
       const siguiente = { ...previo };
@@ -156,7 +160,7 @@ export function useDashboardData(parametros = {}) {
     Promise.allSettled(
       cambiadas.map((fuente) => CARGADORES[fuente](seleccion, { signal: controlador.signal })),
     ).then((resultados) => {
-      if (!activo) return;
+      if (!activo || !secuencia.current.esActual(turno)) return;
       const aplicadasAhora = { ...aplicadas.current };
       const actualizaciones = {};
 
@@ -164,7 +168,7 @@ export function useDashboardData(parametros = {}) {
         const fuente = cambiadas[indice];
         if (resultado.status === 'fulfilled') {
           actualizaciones[fuente] = { datos: resultado.value, error: null, loading: false };
-          aplicadasAhora[fuente] = firmas[fuente];
+          aplicadasAhora[fuente] = firmasSolicitadas[fuente];
         } else if (!esCancelacion(resultado.reason)) {
           actualizaciones[fuente] = {
             datos: null,
@@ -174,7 +178,7 @@ export function useDashboardData(parametros = {}) {
           // El error se muestra y se conserva la última respuesta válida, pero
           // no se reprograma automáticamente al cambiar otro filtro: solo se
           // reintenta si el usuario vuelve a pedirlo.
-          aplicadasAhora[fuente] = firmas[fuente];
+          aplicadasAhora[fuente] = firmasSolicitadas[fuente];
         }
       });
 
@@ -202,21 +206,6 @@ export function useDashboardData(parametros = {}) {
       if (porFuente) Object.assign(resultado, porFuente);
     });
 
-    const slices = estados.instituciones.datos;
-    if (slices) {
-      resultado.catalogos = {
-        ...(resultado.catalogos ?? {}),
-        instituciones: (slices.instituciones ?? []).map((fila) => ({
-          claveSeis: fila.clave_seis,
-          nombre: fila.institucion_nombre,
-          corte: slices.corteInstituciones,
-          trimestre: slices.trimestreInstituciones,
-        })),
-        totalInstitucionesDevueltas: slices.totalDevueltosInstituciones ?? 0,
-        limitadoInstituciones: slices.limitadoInstituciones ?? false,
-      };
-    }
-
     resultado.errores = { ...(base.data.errores ?? {}) };
     FUENTES.forEach((fuente) => {
       const errorFuente = estados[fuente].error;
@@ -237,6 +226,7 @@ export function useDashboardData(parametros = {}) {
   };
 
   const recargarTodo = () => {
+    secuencia.current.siguiente();
     setEstados(estadosIniciales());
     setRevisionBase((anterior) => anterior + 1);
   };

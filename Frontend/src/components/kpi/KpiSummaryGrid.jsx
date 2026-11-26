@@ -19,72 +19,157 @@ const COLOR_POR_KPI = {
   'KPI-09': COLORS.amber,
 };
 
-export default function KpiSummaryGrid({ corte, indicadores, periodo, fuente, bandasPorKpi }) {
+function KpiCompacto({ indicador, corte, tooltip }) {
+  const numero = toNumberOrNull(corte[indicador.campo]);
+
+  return (
+    <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs px-3 py-2.5" title={tooltip}>
+      <div className="text-[11px] font-semibold text-slate-600 leading-tight truncate">
+        {indicador.nombreCorto ?? indicador.nombre}
+      </div>
+      <div className="mt-1 text-base font-extrabold text-slate-900 leading-none">
+        {formatPercentNumber(corte[indicador.campo])}
+        {numero !== null && (
+          <span className="ml-0.5 text-[10px] font-semibold text-slate-500">{indicador.unidad}</span>
+        )}
+      </div>
+      <div
+        className="mt-1 text-[11px] leading-[1.2] text-slate-600 line-clamp-2"
+        title={indicador.mide ?? indicador.descripcion}
+      >
+        {indicador.mide ?? indicador.descripcion}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Reutilizado para las cuatro tarjetas principales y para la franja compacta
+ * de rentabilidad y eficiencia (`ids` + `compacta`).
+ */
+export default function KpiSummaryGrid({
+  corte,
+  indicadores,
+  periodo,
+  fuente,
+  bandasPorKpi = {},
+  ids = null,
+  compacta = false,
+}) {
+  const lista = (ids?.length ? ids : (indicadores ?? []).map((item) => item.id))
+    .map((id) => (indicadores ?? []).find((item) => item.id === id))
+    .filter(Boolean);
+
   if (!corte) {
-    return (
+    return compacta ? null : (
       <div className="bg-white rounded-md border border-slate-200/90 shadow-2xs p-5 text-xs text-slate-500">
-        Sin observación de KPIs sectoriales para el corte {periodo}. No se imputan valores ausentes.
+        El corte {formatMonth(periodo)} no tiene observaciones de KPIs. No se imputan valores ausentes.
       </div>
     );
   }
 
+  const detalleIndicador = (indicador) => {
+    const banda = bandasPorKpi[indicador.id];
+    const numero = toNumberOrNull(corte[indicador.campo]);
+    const umbral = toNumberOrNull(banda?.umbral_regulatorio_min_pct);
+    const minimo = toNumberOrNull(banda?.min_2025_pct);
+    const maximo = toNumberOrNull(banda?.max_2025_pct);
+    let umbralBanda = null;
+
+    if (indicador.id === 'KPI-04' && umbral !== null) {
+      umbralBanda = `Umbral regulatorio documentado: superior a ${formatPercent(umbral, 0)}.`;
+    } else if (minimo !== null && maximo !== null) {
+      umbralBanda = `Banda observada en 2025: ${formatPercent(minimo)} – ${formatPercent(maximo)}. Referencia histórica, no meta.`;
+    }
+
+    return {
+      significado: indicador.mide ?? indicador.descripcion,
+      interpretacion: indicador.lectura ?? indicador.interpretacion,
+      utilidad: indicador.evalua,
+      formula: indicador.formula,
+      fuente: indicador.fuente ?? fuente,
+      umbralBanda,
+      sinValor: numero === null,
+    };
+  };
+
+  const tooltipDe = (detalle) => [
+    `Significado: ${detalle.significado}`,
+    `Interpretación: ${detalle.interpretacion}`,
+    `Utilidad financiera: ${detalle.utilidad}`,
+    `Fórmula: ${detalle.formula}`,
+    `Fuente: ${detalle.fuente}`,
+    detalle.umbralBanda,
+    detalle.sinValor ? 'Valor no publicado en este corte: no se imputa.' : null,
+  ].filter(Boolean).join('\n');
+
+  /** Alerta breve y permanente: hoy solo NICAP tiene umbral regulatorio documentado. */
+  const alertaDe = (indicador) => {
+    if (indicador.id !== 'KPI-04') return null;
+    const umbral = toNumberOrNull(bandasPorKpi[indicador.id]?.umbral_regulatorio_min_pct);
+    if (umbral === null) return null;
+    const numero = toNumberOrNull(corte[indicador.campo]);
+    const textoUmbral = `Umbral regulatorio > ${formatPercent(umbral, 0)}`;
+    return numero !== null && numero < umbral ? `Bajo ${textoUmbral}` : textoUmbral;
+  };
+
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {indicadores.map((indicador) => {
-          const banda = bandasPorKpi[indicador.id];
-          const numero = toNumberOrNull(corte[indicador.campo]);
-          const minimo = toNumberOrNull(banda?.min_2025_pct);
-          const maximo = toNumberOrNull(banda?.max_2025_pct);
-          const umbral = toNumberOrNull(banda?.umbral_regulatorio_min_pct);
-          const alertas = [];
+      {!compacta && (
+        <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
+          <span>
+            <span className="font-semibold text-slate-600">Corte:</span>{' '}
+            {formatMonth(corte.periodo_ym ?? periodo)}
+          </span>
+          {fuente && (
+            <span>
+              <span className="font-semibold text-slate-600">Fuente:</span> {fuente}
+            </span>
+          )}
+        </div>
+      )}
 
-          if (indicador.id === 'KPI-04' && umbral !== null) {
-            alertas.push({ texto: `Umbral regulatorio > ${formatPercent(umbral, 0)}`, tono: 'regulatorio' });
-            if (numero !== null) {
-              alertas.push({
-                texto: numero > umbral ? 'Sobre el umbral regulatorio' : 'Bajo el umbral regulatorio',
-                tono: numero > umbral ? 'regulatorio' : 'atencion',
-              });
-            }
-          } else if (minimo !== null && maximo !== null) {
-            alertas.push({ texto: 'Banda observada 2025 · no regulatoria', tono: 'observado' });
-            if (numero !== null && (numero < minimo || numero > maximo)) {
-              alertas.push({ texto: 'Fuera de banda observada 2025', tono: 'atencion' });
-            }
-          }
-          if (numero === null) {
-            alertas.push({ texto: 'Valor no disponible', tono: 'ausente' });
-          }
-
-          let detalle = '';
-          if (indicador.id === 'KPI-04' && banda?.umbral_regulatorio_min_pct) {
-            detalle = `Umbral regulatorio: superior a ${formatPercent(banda.umbral_regulatorio_min_pct)}`;
-          } else if (banda?.tipo_umbral === 'observado_2025') {
-            detalle = `Banda observada 2025: ${formatPercent(banda.min_2025_pct)} – ${formatPercent(banda.max_2025_pct)} (no regulatoria)`;
+      <div
+        className={
+          compacta
+            ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2'
+            : 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3'
+        }
+      >
+        {lista.map((indicador) => {
+          const detalle = detalleIndicador(indicador);
+          if (compacta) {
+            return (
+              <KpiCompacto
+                key={indicador.id}
+                indicador={indicador}
+                corte={corte}
+                tooltip={tooltipDe(detalle)}
+              />
+            );
           }
 
           return (
             <KpiCard
               key={indicador.id}
               accentColor={COLOR_POR_KPI[indicador.id]}
-              id={indicador.id}
-              nombre={indicador.nombre}
+              nombre={indicador.nombreCorto ?? indicador.nombre}
               valor={formatPercentNumber(corte[indicador.campo])}
               unidad={indicador.unidad}
-              descripcion={indicador.descripcion}
+              descripcion={detalle.significado}
+              alerta={alertaDe(indicador)}
               detalle={detalle}
-              alertas={alertas}
-              corte={formatMonth(corte.periodo_ym ?? periodo)}
-              fuente={indicador.fuente ?? fuente}
             />
           );
         })}
       </div>
-      <p className="mt-3 text-[10px] text-slate-400">
-        Bandas observadas en 2025: referencia histórica, no límites regulatorios ni metas. Solo
-        NICAP cuenta con un umbral regulatorio documentado; las restantes lecturas son descriptivas.
-      </p>
+
+      {!compacta && (
+        <p className="mt-2 text-[10px] text-slate-400">
+          Las referencias históricas y el umbral regulatorio de NICAP se detallan en el ícono (i) de
+          cada tarjeta; no son metas.
+        </p>
+      )}
     </>
   );
 }

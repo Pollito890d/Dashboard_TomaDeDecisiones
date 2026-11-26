@@ -4,15 +4,15 @@ import { formatPercent, formatMonth } from '../../utils/formatters';
 /**
  * Tooltip de las tendencias mensuales oficiales. Todas las series comparten
  * unidad porcentual; los valores nulos se muestran como "No disponible".
+ * El eje puede recortarse, pero aquí se conserva la precisión disponible.
  */
-export default function CustomLineTooltip({ active, payload, label, fuente }) {
+export default function CustomLineTooltip({ active, payload, label, fuente, decimales = 2 }) {
   if (!active || !payload || !payload.length) return null;
 
   return (
     <div className="bg-white border border-slate-200 shadow-lg rounded-lg p-3.5 text-xs min-w-[230px]">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-2">
+      <div className="border-b border-slate-100 pb-1.5 mb-2">
         <span className="font-bold text-slate-800">{formatMonth(label)}</span>
-        <span className="text-[11px] text-slate-400">{label}</span>
       </div>
       <div className="space-y-1.5">
         {payload.map((entrada) => (
@@ -24,7 +24,7 @@ export default function CustomLineTooltip({ active, payload, label, fuente }) {
               />
               {entrada.name}:
             </span>
-            <span className="font-bold text-slate-900">{formatPercent(entrada.value)}</span>
+            <span className="font-bold text-slate-900">{formatPercent(entrada.value, decimales)}</span>
           </div>
         ))}
       </div>
