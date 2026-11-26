@@ -1,12 +1,11 @@
 import { INDICADORES_SECTORIALES } from '../constants/dashboardIndicators';
 
 /**
- * PASO 25 — integración definitiva con el contrato API 1.0.0.
+ * Único punto de comunicación HTTP del frontend (contrato API 1.0.0).
  *
- * Único punto de comunicación HTTP del frontend. Los siete endpoints se
- * consumen desde aquí, sin datasets de demostración ni fallback silencioso.
- * La selección inicial se deriva de los catálogos devueltos por FastAPI; nunca
- * de la fecha del sistema. Todas las solicitudes aceptan AbortSignal.
+ * Además de la carga inicial completa, expone cargadores por fuente para que
+ * un cambio de filtro no vuelva a consultar las demás. Todas las funciones
+ * aceptan AbortSignal y ninguna contiene datos de demostración.
  */
 
 const CONTRATO_ESPERADO = '1.0.0';
@@ -33,6 +32,8 @@ const mensajeError = (error) => {
   if (esCancelacion(error)) return 'Petición cancelada intencionalmente.';
   return 'Se presentó un error inesperado al consultar la API.';
 };
+
+export const describirError = mensajeError;
 
 const razonComoError = (razon) => (razon instanceof Error ? razon : new ApiError(mensajeError(razon)));
 
@@ -220,36 +221,38 @@ export function fetchFuentes({ fuente = null, rol = null, limite = LIMITES.fuent
   });
 }
 
-export function fetchFonacot({ anio = null, trimestre = null, incluirAmbitos = false, signal } = {}) {
+export function fetchFonacot({
+  anio = null,
+  trimestre = null,
+  incluirAmbitos = true,
+  signal,
+} = {}) {
   return requestJson('/api/fonacot', {
-    params: {
-      anio,
-      trimestre,
-      ...(incluirAmbitos ? { incluir_ambitos: true } : {}),
-    },
+    params: { anio, trimestre, ...(incluirAmbitos ? { incluir_ambitos: true } : {}) },
     signal,
     etiqueta: 'el contexto FONACOT',
-    validar: (datos) => Array.isArray(datos?.resumen_trimestral),
+    validar: (datos) =>
+      Array.isArray(datos?.resumen_trimestral) &&
+      (!incluirAmbitos || Array.isArray(datos?.por_ambito)),
   });
 }
 
-export function fetchSniiv({ anio = null, incluirEntidades = false, signal } = {}) {
+export function fetchSniiv({ anio = null, incluirEntidades = true, signal } = {}) {
   return requestJson('/api/sniiv', {
-    params: {
-      anio,
-      ...(incluirEntidades ? { incluir_entidades: true } : {}),
-    },
+    params: { anio, ...(incluirEntidades ? { incluir_entidades: true } : {}) },
     signal,
     etiqueta: 'el contexto SNIIV',
-    validar: (datos) => Array.isArray(datos?.resumen_anual),
+    validar: (datos) =>
+      Array.isArray(datos?.resumen_anual) &&
+      (!incluirEntidades || Array.isArray(datos?.por_entidad)),
   });
 }
 
 /* ------------------------------------------------------------------------- *
- * Catálogos, trazabilidad y selección inicial
+ * Derivaciones y selección inicial
  * ------------------------------------------------------------------------- */
 
-const trimestreDePeriodo = (periodo) => {
+export const trimestreDePeriodo = (periodo) => {
   if (!RE_PERIODO.test(periodo ?? '')) return null;
   const mes = Number(periodo.slice(5, 7));
   return `${periodo.slice(0, 4)}-Q${Math.ceil(mes / 3)}`;
@@ -268,10 +271,21 @@ const ordenarFonacot = (filas) =>
 const ordenarSniiv = (filas) =>
   [...(filas ?? [])].sort((a, b) => Number(a.anio) - Number(b.anio));
 
+const numeroValido = (valor) => {
+  if (valor === null || valor === undefined || valor === '') return null;
+  const numero = Number(valor);
+  return Number.isFinite(numero) ? numero : null;
+};
+
+const limiteValido = (valor) => {
+  const numero = numeroValido(valor);
+  return Number.isInteger(numero) && numero >= 1 && numero <= 100 ? numero : LIMITES.instituciones;
+};
+
 /**
- * Selección inicial reutilizable: toma los valores del corte efectivo informado
- * por la API y los valida contra los catálogos reales. No hay Date(), ni meses
- * semanales, ni suposición de que todas las fuentes compartan cobertura.
+ * Selección inicial: corte efectivo informado por /api/dashboard validado
+ * contra /api/periodos; FONACOT y SNIIV se derivan de sus propias respuestas.
+ * Nunca se usa la fecha del sistema.
  */
 export function construirSeleccionInicial(catalogos = {}, overrides = {}) {
   const mensuales = (catalogos.periodos?.periodos ?? []).filter((valor) => RE_PERIODO.test(valor));
@@ -284,15 +298,8 @@ export function construirSeleccionInicial(catalogos = {}, overrides = {}) {
     ?? mensuales[0]
     ?? null;
 
-  const anioOverride =
-    overrides.anio !== null && overrides.anio !== undefined && overrides.anio !== ''
-      ? Number(overrides.anio)
-      : null;
-  const anio = Number.isFinite(anioOverride)
-    ? anioOverride
-    : periodo
-      ? Number(periodo.slice(0, 4))
-      : null;
+  const anioOverride = numeroValido(overrides.anio);
+  const anio = anioOverride ?? (periodo ? Number(periodo.slice(0, 4)) : null);
 
   const mesesTrimestrales = mensuales.filter((valor) =>
     [3, 6, 9, 12].includes(Number(valor.slice(5, 7))),
@@ -314,8 +321,7 @@ export function construirSeleccionInicial(catalogos = {}, overrides = {}) {
       ?? null;
   }
 
-  const trimestreOverrideOk = RE_TRIMESTRE.test(overrides.trimestreInstitucional ?? '');
-  let trimestreInstitucional = trimestreOverrideOk
+  const trimestreInstitucional = RE_TRIMESTRE.test(overrides.trimestreInstitucional ?? '')
     ? overrides.trimestreInstitucional
     : (periodoInstitucional ? trimestreDePeriodo(periodoInstitucional) : null);
   if (!periodoInstitucional && trimestreInstitucional) {
@@ -323,47 +329,30 @@ export function construirSeleccionInicial(catalogos = {}, overrides = {}) {
     if (mensuales.includes(derivado)) periodoInstitucional = derivado;
   }
 
-  const anioInstitucionalOverride =
-    overrides.anioInstitucional !== null &&
-    overrides.anioInstitucional !== undefined &&
-    overrides.anioInstitucional !== ''
-      ? Number(overrides.anioInstitucional)
-      : null;
-  const anioInstitucional = Number.isFinite(anioInstitucionalOverride)
-    ? anioInstitucionalOverride
-    : trimestreInstitucional
-      ? Number(trimestreInstitucional.slice(0, 4))
-      : anio;
+  const anioInstitucional = numeroValido(overrides.anioInstitucional)
+    ?? (trimestreInstitucional ? Number(trimestreInstitucional.slice(0, 4)) : anio);
 
   const filasFonacot = ordenarFonacot(catalogos.fonacot?.resumen_trimestral);
   const filaFonacotPreferida = [...filasFonacot].reverse().find((fila) => Number(fila.anio) === anio)
     ?? filasFonacot[filasFonacot.length - 1]
     ?? null;
-  const trimestreFonacotOverride = RE_TRIMESTRE.test(overrides.trimestreFonacot ?? '')
+  const trimestreFonacot = RE_TRIMESTRE.test(overrides.trimestreFonacot ?? '')
     ? overrides.trimestreFonacot
-    : null;
-  const trimestreFonacot = trimestreFonacotOverride
-    ?? filaFonacotPreferida?.trimestre
-    ?? null;
+    : filaFonacotPreferida?.trimestre
+      ?? null;
+  const anioFonacot = numeroValido(overrides.anioFonacot)
+    ?? numeroValido(filaFonacotPreferida?.anio)
+    ?? (trimestreFonacot ? Number(trimestreFonacot.slice(0, 4)) : anio);
 
   const filasSniiv = ordenarSniiv(catalogos.sniiv?.resumen_anual);
-  const anioSniivOverride =
-    overrides.anioSniiv !== null && overrides.anioSniiv !== undefined && overrides.anioSniiv !== ''
-      ? Number(overrides.anioSniiv)
-      : null;
-  const anioSniiv = Number.isFinite(anioSniivOverride)
-    ? anioSniivOverride
-    : filasSniiv.find((fila) => Number(fila.anio) === anio)?.anio
-      ?? filasSniiv[filasSniiv.length - 1]?.anio
-      ?? null;
+  const anioSniiv = numeroValido(overrides.anioSniiv)
+    ?? numeroValido(filasSniiv.find((fila) => Number(fila.anio) === anio)?.anio)
+    ?? numeroValido(filasSniiv[filasSniiv.length - 1]?.anio)
+    ?? null;
 
   const claveSeis = typeof overrides.claveSeis === 'string' && overrides.claveSeis
     ? overrides.claveSeis
     : null;
-  const limiteSolicitado = Number(overrides.limiteInstituciones);
-  const limiteInstituciones = Number.isInteger(limiteSolicitado) && limiteSolicitado >= 1 && limiteSolicitado <= 100
-    ? limiteSolicitado
-    : LIMITES.instituciones;
 
   return {
     periodo,
@@ -372,11 +361,138 @@ export function construirSeleccionInicial(catalogos = {}, overrides = {}) {
     trimestreInstitucional,
     anioInstitucional,
     trimestreFonacot,
+    anioFonacot,
     anioSniiv,
     claveSeis,
-    limiteInstituciones,
+    limiteInstituciones: limiteValido(overrides.limiteInstituciones),
   };
 }
+
+/* ------------------------------------------------------------------------- *
+ * Normalización por fuente (la usan la carga inicial y las cargas parciales)
+ * ------------------------------------------------------------------------- */
+
+const sectorSlice = (respuesta, seleccion = {}) => ({
+  contratoVersion: respuesta?.contrato_version ?? null,
+  indicadores: INDICADORES_SECTORIALES,
+  corte: respuesta?.corte ?? null,
+  periodo: respuesta?.periodo_solicitado ?? seleccion.periodo ?? null,
+  serieAnual: [...(respuesta?.serie_anual ?? [])].sort((a, b) =>
+    String(a.periodo_ym).localeCompare(String(b.periodo_ym)),
+  ),
+  bandasPorKpi: Object.fromEntries(
+    (respuesta?.bandas_2025 ?? []).map((banda) => [banda.kpi_id, banda]),
+  ),
+  fuenteCnbv: respuesta?.fuente ?? null,
+  notaCnbv: respuesta?.nota ?? null,
+  sinDatosCnbv: Boolean(respuesta?.sin_datos),
+  periodosDisponiblesCnbv: respuesta?.periodos_disponibles ?? null,
+});
+
+const institucionesSlice = (respuesta, seleccion = {}) => ({
+  instituciones: respuesta?.instituciones ?? [],
+  corteInstituciones: respuesta?.corte ?? seleccion.periodoInstitucional ?? null,
+  trimestreInstituciones: respuesta?.trimestre ?? seleccion.trimestreInstitucional ?? null,
+  limitadoInstituciones: respuesta?.limitado ?? false,
+  totalDevueltosInstituciones: respuesta?.total_devueltos ?? 0,
+  notaInstituciones: respuesta?.nota ?? null,
+  sinDatosInstituciones: respuesta?.sin_datos ?? true,
+  fuenteInstituciones: respuesta?.fuente ?? null,
+  claveSeisInstituciones: typeof seleccion.claveSeis === 'string' ? seleccion.claveSeis : null,
+});
+
+const fonacotSlice = (respuesta, seleccion = {}) => {
+  const filas = ordenarFonacot(respuesta?.resumen_trimestral);
+  const fila = seleccion.trimestreFonacot
+    ? filas.find((item) => item.trimestre === seleccion.trimestreFonacot) ?? null
+    : filas[filas.length - 1] ?? null;
+  const porAmbito = respuesta?.por_ambito ?? [];
+  const entidades = [...new Set(
+    porAmbito
+      .filter((item) => item?.tipo_ambito === 'entidad' && item?.ambito_canonico)
+      .map((item) => item.ambito_canonico),
+  )].sort((a, b) => String(a).localeCompare(String(b), 'es'));
+
+  return {
+    fonacot: fila,
+    trimestreFonacot: fila?.trimestre ?? seleccion.trimestreFonacot ?? null,
+    anioFonacot: numeroValido(fila?.anio) ?? numeroValido(seleccion.anioFonacot) ?? null,
+    fuenteFonacot: respuesta?.fuente ?? null,
+    sinDatosFonacot: Boolean(respuesta?.sin_datos) || !fila,
+    desgloseFonacot: porAmbito,
+    entidadesFonacot: entidades,
+  };
+};
+
+const sniivSlice = (respuesta, seleccion = {}) => {
+  const filas = ordenarSniiv(respuesta?.resumen_anual);
+  const fila = numeroValido(seleccion.anioSniiv) !== null
+    ? filas.find((item) => Number(item.anio) === Number(seleccion.anioSniiv)) ?? null
+    : filas[filas.length - 1] ?? null;
+  const porEntidad = respuesta?.por_entidad ?? [];
+  const entidades = porEntidad
+    .filter((item) => item?.cve_ent !== null && item?.cve_ent !== undefined && item.cve_ent !== '')
+    .map((item) => ({
+      value: String(item.cve_ent),
+      etiqueta: `${String(item.cve_ent).padStart(2, '0')} · ${item.entidad_nombre ?? 'Entidad'}`,
+      nombre: item.entidad_nombre ?? null,
+    }))
+    .sort((a, b) => a.value.localeCompare(b.value));
+
+  return {
+    sniiv: fila,
+    anioSniiv: numeroValido(fila?.anio) ?? numeroValido(seleccion.anioSniiv) ?? null,
+    fuenteSniiv: respuesta?.fuente ?? null,
+    sinDatosSniiv: Boolean(respuesta?.sin_datos) || !fila,
+    desgloseSniiv: porEntidad,
+    entidadesSniiv: entidades,
+  };
+};
+
+/** Cargadores independientes: cada filtro consulta solo su fuente. */
+export async function cargarCnbv(parametros = {}, { signal } = {}) {
+  const respuesta = await fetchDashboard({
+    periodo: parametros.periodo ?? null,
+    anio: parametros.anio ?? null,
+    signal,
+  });
+  return sectorSlice(respuesta, parametros);
+}
+
+export async function cargarInstituciones(parametros = {}, { signal } = {}) {
+  const respuesta = await fetchInstituciones({
+    periodo: parametros.periodoInstitucional ?? null,
+    trimestre: parametros.trimestreInstitucional ?? null,
+    claveSeis: parametros.claveSeis ?? null,
+    anio: parametros.anioInstitucional ?? null,
+    limite: limiteValido(parametros.limiteInstituciones),
+    signal,
+  });
+  return institucionesSlice(respuesta, parametros);
+}
+
+export async function cargarFonacot(parametros = {}, { signal } = {}) {
+  const respuesta = await fetchFonacot({
+    anio: parametros.anioFonacot ?? null,
+    trimestre: parametros.trimestreFonacot ?? null,
+    incluirAmbitos: true,
+    signal,
+  });
+  return fonacotSlice(respuesta, parametros);
+}
+
+export async function cargarSniiv(parametros = {}, { signal } = {}) {
+  const respuesta = await fetchSniiv({
+    anio: parametros.anioSniiv ?? null,
+    incluirEntidades: true,
+    signal,
+  });
+  return sniivSlice(respuesta, parametros);
+}
+
+/* ------------------------------------------------------------------------- *
+ * Catálogos, trazabilidad y carga inicial
+ * ------------------------------------------------------------------------- */
 
 const construirCatalogos = ({ periodos, instituciones, fonacot, sniiv }) => {
   const periodosMensuales = (periodos?.periodos ?? []).map((valor) => ({
@@ -405,8 +521,8 @@ const construirCatalogos = ({ periodos, instituciones, fonacot, sniiv }) => {
 
   const aniosSniiv = ordenarSniiv(sniiv?.resumen_anual)
     .reverse()
-    .map((fila) => Number(fila.anio))
-    .filter((anio) => Number.isFinite(anio))
+    .map((fila) => numeroValido(fila?.anio))
+    .filter((anio) => anio !== null)
     .map((anio) => ({ value: anio, etiqueta: String(anio) }));
 
   const institucionesCatalogo = (instituciones?.instituciones ?? []).map((fila) => ({
@@ -468,10 +584,6 @@ const construirResumenFuentes = (respuesta) => {
   };
 };
 
-/* ------------------------------------------------------------------------- *
- * Orquestación reutilizable por el hook
- * ------------------------------------------------------------------------- */
-
 const INDICES = Object.freeze({
   dashboard: 0,
   periodos: 1,
@@ -482,15 +594,17 @@ const INDICES = Object.freeze({
 });
 
 /**
- * Carga oficial completa. Sin parámetros, `/api/dashboard` devuelve el corte
- * con observaciones más reciente según sus propios catálogos; esa respuesta y
- * `/api/periodos` determinan la selección inicial. Con parámetros explícitos,
- * se respeta exactamente la selección recibida (preparado para el paso 26).
+ * Carga inicial completa: determina la selección a partir de las respuestas
+ * oficiales y deja los catálogos listos para los filtros interactivos.
  */
 export async function loadDashboardData(parametros = {}, { signal } = {}) {
   const seleccionSolicitada = parametros ?? {};
   const faseCatalogos = await Promise.allSettled([
-    fetchDashboard({ periodo: seleccionSolicitada.periodo ?? null, anio: seleccionSolicitada.anio ?? null, signal }),
+    fetchDashboard({
+      periodo: seleccionSolicitada.periodo ?? null,
+      anio: seleccionSolicitada.anio ?? null,
+      signal,
+    }),
     fetchPeriodos({ signal }),
     fetchFonacot({ signal }),
     fetchSniiv({ signal }),
@@ -545,61 +659,26 @@ export async function loadDashboardData(parametros = {}, { signal } = {}) {
     errores.instituciones = mensajeError(error);
   }
 
-  const filasFonacot = ordenarFonacot(fonacotCatalogo?.resumen_trimestral);
-  const fonacotFila = seleccion.trimestreFonacot
-    ? filasFonacot.find((fila) => fila.trimestre === seleccion.trimestreFonacot) ?? null
-    : filasFonacot[filasFonacot.length - 1] ?? null;
-  if (seleccion.trimestreFonacot && !fonacotFila && !errores.fonacot) {
-    errores.fonacot = `FONACOT no tiene información oficial para ${seleccion.trimestreFonacot}.`;
-  }
+  const sector = sectorSlice(dashboard, seleccion);
+  const institucional = institucionesSlice(instituciones, seleccion);
+  const fonacot = fonacotSlice(fonacotCatalogo, seleccion);
+  const sniiv = sniivSlice(sniivCatalogo, seleccion);
 
-  const filasSniiv = ordenarSniiv(sniivCatalogo?.resumen_anual);
-  const sniivFila = seleccion.anioSniiv !== null
-    ? filasSniiv.find((fila) => Number(fila.anio) === Number(seleccion.anioSniiv)) ?? null
-    : filasSniiv[filasSniiv.length - 1] ?? null;
-  if (seleccion.anioSniiv !== null && !sniivFila && !errores.sniiv) {
-    errores.sniiv = `SNIIV no tiene información oficial para ${seleccion.anioSniiv}.`;
-  }
-
-  const serieAnual = [...(dashboard.serie_anual ?? [])].sort((a, b) =>
-    String(a.periodo_ym).localeCompare(String(b.periodo_ym)),
-  );
-  const bandasPorKpi = Object.fromEntries(
-    (dashboard.bandas_2025 ?? []).map((banda) => [banda.kpi_id, banda]),
-  );
+  const seleccionFinal = {
+    ...seleccion,
+    periodo: sector.periodo,
+    corteInstitucional: institucional.corteInstituciones,
+    trimestreInstitucional: institucional.trimestreInstituciones,
+    trimestreFonacot: fonacot.trimestreFonacot,
+    anioFonacot: fonacot.anioFonacot,
+    anioSniiv: sniiv.anioSniiv,
+  };
 
   return {
-    contratoVersion: dashboard.contrato_version,
-    indicadores: INDICADORES_SECTORIALES,
-    corte: dashboard.corte,
-    periodo: dashboard.periodo_solicitado ?? seleccion.periodo,
-    serieAnual,
-    bandasPorKpi,
-    fuenteCnbv: dashboard.fuente ?? null,
-    notaCnbv: dashboard.nota ?? null,
-    sinDatosCnbv: Boolean(dashboard.sin_datos),
-    periodosDisponiblesCnbv: dashboard.periodos_disponibles ?? null,
-
-    instituciones: instituciones?.instituciones ?? [],
-    corteInstituciones: instituciones?.corte ?? seleccion.periodoInstitucional,
-    trimestreInstituciones: instituciones?.trimestre ?? seleccion.trimestreInstitucional,
-    limitadoInstituciones: instituciones?.limitado ?? false,
-    totalDevueltosInstituciones: instituciones?.total_devueltos ?? 0,
-    notaInstituciones: instituciones?.nota ?? null,
-    sinDatosInstituciones: instituciones?.sin_datos ?? true,
-    fuenteInstituciones: instituciones?.fuente ?? null,
-    claveSeisInstituciones: seleccion.claveSeis,
-
-    fonacot: fonacotFila,
-    trimestreFonacot: fonacotFila?.trimestre ?? seleccion.trimestreFonacot,
-    fuenteFonacot: fonacotCatalogo?.fuente ?? null,
-    sinDatosFonacot: fonacotCatalogo?.sin_datos ?? !fonacotFila,
-
-    sniiv: sniivFila,
-    anioSniiv: sniivFila?.anio ?? seleccion.anioSniiv,
-    fuenteSniiv: sniivCatalogo?.fuente ?? null,
-    sinDatosSniiv: sniivCatalogo?.sin_datos ?? !sniivFila,
-
+    ...sector,
+    ...institucional,
+    ...fonacot,
+    ...sniiv,
     catalogos: construirCatalogos({ periodos, instituciones, fonacot: fonacotCatalogo, sniiv: sniivCatalogo }),
     fuentes: construirResumenFuentes(fuentes),
     estadoApi: health
@@ -609,15 +688,7 @@ export async function loadDashboardData(parametros = {}, { signal } = {}) {
           detail: health.detail ?? null,
         }
       : null,
-    seleccion: {
-      ...seleccion,
-      periodo: dashboard.periodo_solicitado ?? seleccion.periodo,
-      anio: seleccion.anio,
-      corteInstitucional: instituciones?.corte ?? seleccion.periodoInstitucional,
-      trimestreInstitucional: instituciones?.trimestre ?? seleccion.trimestreInstitucional,
-      trimestreFonacot: fonacotFila?.trimestre ?? seleccion.trimestreFonacot,
-      anioSniiv: sniivFila?.anio ?? seleccion.anioSniiv,
-    },
+    seleccion: seleccionFinal,
     errores,
   };
 }

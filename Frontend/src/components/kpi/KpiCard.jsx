@@ -1,10 +1,16 @@
 import { formatNoDisponible } from '../../utils/formatters';
 
+const TONOS = {
+  regulatorio: 'bg-teal-50 text-[#0E7C7B] border-teal-200/70',
+  observado: 'bg-slate-50 text-slate-600 border-slate-200',
+  atencion: 'bg-amber-50 text-amber-800 border-amber-200',
+  ausente: 'bg-slate-50 text-slate-500 border-slate-200',
+};
+
 /**
  * Tarjeta oficial: mantiene el marcado original (barra superior de 4 px,
  * padding y jerarquía tipográfica) y añade corte, fuente y descripción.
- * La cifra llega sin símbolo de unidad; aquí se añade `unidad` una sola vez
- * (por ejemplo, `% anual` en los indicadores anualizados).
+ * La cifra llega sin símbolo de unidad; aquí se añade `unidad` una sola vez.
  */
 export default function KpiCard({
   accentColor,
@@ -16,6 +22,7 @@ export default function KpiCard({
   detalle,
   corte,
   fuente,
+  alertas = [],
 }) {
   return (
     <article className="bg-white rounded-md border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col justify-between">
@@ -38,6 +45,20 @@ export default function KpiCard({
         <div className="mt-3 text-[11px] font-medium text-slate-500">{descripcion}</div>
         {detalle && (
           <div className="mt-1.5 text-[10px] text-slate-400">{detalle}</div>
+        )}
+        {alertas.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {alertas.map((alerta, indice) => (
+              <span
+                key={`${alerta.texto}-${indice}`}
+                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
+                  TONOS[alerta.tono] ?? TONOS.observado
+                }`}
+              >
+                {alerta.texto}
+              </span>
+            ))}
+          </div>
         )}
         <div className="mt-3 pt-2 border-t border-slate-100 text-[10px] text-slate-400 space-y-0.5">
           <div>Corte: {corte}</div>
