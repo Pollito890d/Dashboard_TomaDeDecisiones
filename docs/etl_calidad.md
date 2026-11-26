@@ -1,6 +1,6 @@
 # Calidad del ETL local y contrato de salidas (paso 15)
 
-**Alcance:** validaciones en Python sobre los archivos transformados y pruebas automatizadas locales. Las FK, restricciones, inserción idempotente, rollback y conciliación desde PostgreSQL **no se ejecutaron**: quedan pendientes del merge ([etl_integracion_pendiente.md](etl_integracion_pendiente.md)).
+**Alcance original:** validaciones en Python sobre los archivos transformados y pruebas automatizadas locales. El alcance posterior se cerró: FK, restricciones, inserción idempotente, rollback y conciliación desde PostgreSQL sí se ejecutaron y se documentan con evidencia real en [etl_integracion_pendiente.md](etl_integracion_pendiente.md) y [validacion_kpis.md](validacion_kpis.md).
 
 ## 1. Validaciones automáticas (`ETL/validations.py`)
 
@@ -89,6 +89,6 @@ Códigos y etiquetas (`entidad`, `municipio`) como texto exacto del CSV; `accion
 
 `archivo, hoja, fila, columna, valor_original, motivo`. Ninguna fila se descarta en silencio: todo NULL atípico, clave sin pareja o columna ausente queda aquí o en `marcas_origen`.
 
-## 4. Ajustes necesarios para integrar con el esquema
+## 4. Integración con el esquema
 
-Ver [etl_integracion_pendiente.md](etl_integracion_pendiente.md): mapeo columna→tabla, resolución de FKs, política de redondeo y pruebas SQL pendientes (`Database/04_validation.sql`).
+Los ajustes ya están implementados y verificados. Ver [etl_integracion_pendiente.md](etl_integracion_pendiente.md): mapeo columna→tabla, resolución de FKs, política de redondeo y resultado de `Database/04_validation.sql` (`VALIDACION_FASE_IV_OK`, ejecución `6`).

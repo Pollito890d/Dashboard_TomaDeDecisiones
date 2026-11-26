@@ -3,9 +3,12 @@
 Uso desde la raíz del repositorio:
     .\\.venv\\Scripts\\python.exe ETL\\run_etl.py                 # las tres fuentes
     .\\.venv\\Scripts\\python.exe ETL\\run_etl.py --fuente cnbv   # una o varias fuentes
+    .\\.venv\\Scripts\\python.exe ETL\\run_etl.py --cargar        # ETL local + carga PostgreSQL
 
 Modo local por defecto: no requiere PostgreSQL ni DATABASE_URL. Las salidas se generan en
 un directorio temporal y solo reemplazan a las vigentes si todas las validaciones pasan.
+``--cargar`` exige las tres fuentes y carga las cinco salidas publicadas en una sola
+transacción (ver ETL/load_facts.py); la idempotencia se decide por sus SHA-256.
 """
 
 import argparse
@@ -24,6 +27,7 @@ from config import FUENTES, VERSION_PROCESO, load_settings, setup_logging  # noq
 from common import RECHAZO_COLUMNAS, EtlError, sha256_file, verify_manifest, write_csv, write_json  # noqa: E402
 import cnbv_etl  # noqa: E402
 import fonacot_etl  # noqa: E402
+import load_facts  # noqa: E402
 import sniiv_etl  # noqa: E402
 from validations import VALIDADORES  # noqa: E402
 
@@ -31,18 +35,18 @@ MODULOS = {'cnbv': cnbv_etl, 'fonacot': fonacot_etl, 'sniiv': sniiv_etl}
 MANIFIESTO = 'etl_manifest.json'
 
 
-def cargar_postgres(*_args, **_kwargs):
-    """Carga SQL futura: se implementará tras el merge de fases II y III (ver
-    docs/etl_integracion_pendiente.md). Deshabilitada: no se simula ninguna conexión."""
-    raise NotImplementedError('La carga a PostgreSQL no forma parte de la fase III')
+def cargar_postgres(settings, files=None, manifest=None):
+    """Carga atómica de las salidas publicadas; delega en ``load_facts.cargar``."""
+    return load_facts.cargar(settings, files=files, manifest=manifest)
 
 
 def parse_args(argv):
-    p = argparse.ArgumentParser(description='ETL local CNBV / FONACOT / SNIIV (sin base de datos)')
+    p = argparse.ArgumentParser(description='ETL local CNBV / FONACOT / SNIIV y carga PostgreSQL opcional')
     p.add_argument('--fuente', choices=FUENTES + ('todas',), nargs='+', default=['todas'],
                    help='fuentes a procesar (por defecto: todas)')
     p.add_argument('--salida', help='directorio de salida (por defecto ETL_PROCESSED_DIR o data/processed)')
-    p.add_argument('--cargar', action='store_true', help='reservado: carga SQL no implementada en la fase III')
+    p.add_argument('--cargar', action='store_true',
+                   help='tras validar el ETL local, cargar las cinco salidas en PostgreSQL')
     return p.parse_args(argv)
 
 
@@ -55,8 +59,8 @@ def run(argv=None, settings=None):
     started = datetime.now(timezone.utc)
     stamp = started.strftime('%Y%m%dT%H%M%SZ')
     log = setup_logging(settings, settings.log_dir / f'etl_{stamp}.log')
-    if args.cargar:
-        log.error('--cargar no está disponible: la carga SQL queda pendiente de la integración')
+    if args.cargar and fuentes != list(FUENTES):
+        log.error('--cargar requiere las tres fuentes: la instantánea SQL necesita las cinco salidas')
         return 2
     staging = settings.processed_dir / f'.staging_{stamp}_{os.getpid()}'
     record = dict(version_proceso=VERSION_PROCESO, iniciada_en=started.isoformat(), fuentes=fuentes,
@@ -87,6 +91,13 @@ def run(argv=None, settings=None):
         publish(settings, staging, sections)
         record.update(estado='exitosa', originales_intactos='19/19')
         log.info('ETL exitoso: %s. Salidas en %s', ', '.join(fuentes), settings.processed_dir)
+        if args.cargar:
+            manifest_path = settings.processed_dir / MANIFIESTO
+            manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+            carga = cargar_postgres(settings, files=verify_manifest(settings), manifest=manifest)
+            record['carga_postgres'] = dict(estado=carga.estado, ejecucion_id=carga.ejecucion_id,
+                                            filas=carga.filas)
+            log.info('Carga PostgreSQL %s: ejecución %s', carga.estado, carga.ejecucion_id)
         return 0
     except Exception as exc:  # noqa: BLE001 - se registra y se devuelve código de error
         record.update(estado='fallida', error=f'{type(exc).__name__}: {exc}')

@@ -2,7 +2,7 @@
 
 **Rama:** `feature/fase-3-etl`, creada desde `main` en `f6ace0e` (ese commit ya contiene el merge de `feature/database`, último commit `c109371`). El modelo de la fase II (`docs/modelo_datos.md`, `docs/diccionario_datos.md`, `Database/01_schema.sql`) se consultó en ese commit **solo como lectura**: no se editaron `Database/`, `Backend/`, `Frontend/` ni `data/raw/`.
 
-**Alcance:** extracción, transformación y validación local de CNBV, FONACOT y SNIIV. **No** se instala ni configura PostgreSQL, **no** se usa `DATABASE_URL` y **no** se cargan hechos; la carga queda para la integración (ver [etl_integracion_pendiente.md](etl_integracion_pendiente.md)).
+**Alcance histórico:** extracción, transformación y validación local de CNBV, FONACOT y SNIIV. Este documento describe la Fase III: el modo local no configura PostgreSQL ni usa `DATABASE_URL`. La integración posterior quedó implementada y verificada en [etl_integracion_pendiente.md](etl_integracion_pendiente.md) y [validacion_kpis.md](validacion_kpis.md).
 
 ## Requisitos
 
@@ -16,7 +16,7 @@ python -m venv .venv                                   # solo si no existe
 .\.venv\Scripts\python.exe -m pip install -r ETL\requirements.txt
 ```
 
-`ETL/requirements.txt` fija pandas 3.1.1, openpyxl 3.1.5, python-dotenv 1.2.4 y pytest 9.2.0 con sus dependencias. No incluye SQLAlchemy ni psycopg porque el ETL local no se conecta a ninguna base.
+`ETL/requirements.txt` fija pandas 3.1.1, openpyxl 3.1.5, python-dotenv 1.2.4 y pytest 9.2.0 con sus dependencias. Tras la integración, `run_etl.py` importa `load_facts.py`, por lo que el entorno también requiere `Backend/requirements.txt` (SQLAlchemy y psycopg); solo `--cargar` abre la conexión.
 
 ## Configuración (opcional)
 
@@ -48,7 +48,7 @@ Flujo de `ETL/run_etl.py`:
 4. Vuelve a verificar los 19 originales y solo entonces reemplaza las salidas vigentes (`os.replace` por archivo) y actualiza `data/processed/etl_manifest.json`. Si algo falla, las salidas anteriores quedan intactas y el directorio temporal se elimina.
 5. Escribe `data/processed/logs/etl_<UTC>.log` y `ejecucion_<UTC>.json` (estado, fuentes, duración, pruebas y error si lo hubo).
 
-Códigos de salida: `0` éxito, `1` error de lectura/validación, `2` opción `--cargar` (reservada; la carga SQL no está implementada y la función `cargar_postgres` lanza `NotImplementedError`).
+Códigos de salida: `0` éxito, `1` error de lectura/validación (o fallo de carga con `--cargar`), `2` opción inválida, incluido `--cargar` sin las tres fuentes. La carga ya no está reservada: `cargar_postgres` delega en `load_facts.cargar()` y se ejecuta solo con `--cargar`.
 
 ## Salidas
 

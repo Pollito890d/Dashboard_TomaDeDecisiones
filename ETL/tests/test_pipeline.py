@@ -10,6 +10,7 @@ import pytest
 
 import cnbv_etl
 import fonacot_etl
+import load_facts
 import run_etl
 from common import EtlError, sha256_file, verify_manifest
 from validations import validate_fonacot
@@ -135,10 +136,28 @@ def test_hash_alterado_detectado(settings, tmp_path):
         verify_manifest(replace(settings, raw_dir=raw))
 
 
-def test_carga_sql_deshabilitada(settings, tmp_path):
-    assert run_etl.run(['--cargar', '--salida', str(tmp_path)], settings) == 2
-    with pytest.raises(NotImplementedError):
-        run_etl.cargar_postgres()
+def test_carga_sql_exige_tres_fuentes(settings, tmp_path):
+    # --cargar se rechaza antes de tocar PostgreSQL si la instantánea está incompleta.
+    assert run_etl.run(['--cargar', '--fuente', 'cnbv', '--salida', str(tmp_path)], settings) == 2
+
+
+def test_cargar_postgres_delega_en_loader(monkeypatch):
+    class Resultado:
+        estado = 'exitosa'
+        ejecucion_id = 99
+        filas = {'hecho_cnbv_sector_mes': 598}
+
+    llamadas = []
+
+    def falso_cargar(settings, *, files=None, manifest=None):
+        llamadas.append((settings, files, manifest))
+        return Resultado()
+
+    monkeypatch.setattr(load_facts, 'cargar', falso_cargar)
+    settings, files, manifest = object(), object(), object()
+    resultado = run_etl.cargar_postgres(settings, files=files, manifest=manifest)
+    assert resultado.estado == 'exitosa' and resultado.ejecucion_id == 99
+    assert llamadas == [(settings, files, manifest)]
 
 
 def test_resolver_encabezado_ambiguo():

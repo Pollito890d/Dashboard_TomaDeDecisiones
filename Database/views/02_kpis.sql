@@ -333,7 +333,8 @@ SELECT
     t.ejecucion_id,
     t.mes_id,
     to_char(t.mes_id, 'YYYY-MM') AS periodo_ym,
-    '2025-Q' || (EXTRACT(MONTH FROM t.mes_id)::integer / 3)::text AS trimestre,
+    to_char(t.mes_id, 'YYYY') || '-Q' ||
+        (((EXTRACT(MONTH FROM t.mes_id)::integer - 1) / 3) + 1)::text AS trimestre,
 
     -- Saldos del total trimestral del boletín vs Series
     t.activo_mxn AS boletin_activo_total_mxn,

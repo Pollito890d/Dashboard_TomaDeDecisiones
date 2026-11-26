@@ -219,7 +219,8 @@ SELECT
     i.mes_id,
     to_char(i.mes_id, 'YYYY-MM') AS periodo_ym,
     EXTRACT(YEAR FROM i.mes_id)::integer AS anio,
-    '2025-Q' || (EXTRACT(MONTH FROM i.mes_id)::integer / 3)::text AS trimestre,
+    to_char(i.mes_id, 'YYYY') || '-Q' ||
+        (((EXTRACT(MONTH FROM i.mes_id)::integer - 1) / 3) + 1)::text AS trimestre,
     i.institucion_id,
     di.clave_seis,
     di.clave_boletin,
